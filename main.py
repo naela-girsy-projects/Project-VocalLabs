@@ -17,7 +17,7 @@ class SpeechAnalyzer:
             word_timestamps=True,
             initial_prompt=(
                 "Please transcribe exactly as spoken. Include every um, uh, ah, er, pause, repetition, "
-                "and false start. Do not clean up or correct the speech. Transcribe with maximum verbatim accuracy."
+                "and false start. Do not clean up or correct the speech. Transcribe with maximum verbatim accuracy. This is a test."
             )
         )
         self.transcription_with_pauses = result["segments"]  # Store transcription data
@@ -27,3 +27,4 @@ class SpeechAnalyzer:
 if __name__ == "__main__":
     analyzer = SpeechAnalyzer()
     analyzer.transcribe_audio()
+    
