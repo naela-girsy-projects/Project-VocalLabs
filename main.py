@@ -4,7 +4,6 @@ from transformers import pipeline
 import os
 import torch
 
-
 class SpeechAnalyzer:
     def __init__(self, model_name="medium", audio_path="D:\\IntelijiProjects\\sampleCheck1\\didula_audio01.wav"):
         self.model = whisper.load_model(model_name)
@@ -13,7 +12,7 @@ class SpeechAnalyzer:
         self.number_of_pauses = 0
         self.device = 0 if torch.cuda.is_available() else -1
         self.topic_analyzer = pipeline("zero-shot-classification", model="facebook/bart-large-mnli", device=self.device)
-        os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
+        print("SpeechAnalyzer initialized.")
 
     def transcribe_audio(self):
         result = self.model.transcribe(
@@ -25,7 +24,7 @@ class SpeechAnalyzer:
                 "and false start. Do not clean up or correct the speech. Transcribe with maximum verbatim accuracy."
             )
         )
-        return result
+        return result  # Return full transcription result
 
     def process_transcription(self, result):
         for i in range(len(result['segments'])):
