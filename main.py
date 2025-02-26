@@ -3,7 +3,6 @@ import torch
 import re
 from transformers import pipeline
 
-
 class SpeechAnalyzer:
     def __init__(self, model_name="medium", audio_path="D:\\IntelijiProjects\\sampleCheck1\\didula_audio01.wav"):
         self.model = whisper.load_model(model_name)
@@ -24,8 +23,8 @@ class SpeechAnalyzer:
                 "and false start. Do not clean up or correct the speech. Transcribe with maximum verbatim accuracy."
             )
         )
-        return result
-
+        return result  # Return full transcription result
+    
     def process_transcription(self, result):
         for i in range(len(result['segments'])):
             segment = result['segments'][i]
@@ -57,7 +56,7 @@ class SpeechAnalyzer:
 
         self.transcription_with_pauses = ' '.join(self.transcription_with_pauses)
         self.transcription_with_pauses = re.sub(r'\s+', ' ', self.transcription_with_pauses).strip()
-
+    
     def filler_word_detection(self, transcription):
         filler_count = 0
         filler_words = ["um", "uh", "ah", "ugh", "you know"]
@@ -68,3 +67,10 @@ class SpeechAnalyzer:
     def analyze_topic_relevance(self, transcription, topics):
         result = self.topic_analyzer(transcription, topics)
         return result
+
+# Example usage
+if __name__ == "__main__":
+    analyzer = SpeechAnalyzer()
+    result = analyzer.transcribe_audio()
+    print(result["text"])  # Print only the transcript text
+    analyzer.process_transcription(result)
