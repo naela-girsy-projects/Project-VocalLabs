@@ -1,62 +1,30 @@
-import vosk
-import pyaudio
-import json
-import noisereduce as nr
-import numpy as np
-import time
+import whisper
+import torch
 
-# Update the path to where you downloaded and extracted the model
-model = vosk.Model("D:/IIT/SDGP/Project_VocalLabs/vosk_model")  # Correct model path
-recognizer = vosk.KaldiRecognizer(model, 16000)
+class SpeechAnalyzer:
+    def __init__(self, model_name="medium", audio_path="D:\\IntelijiProjects\\sampleCheck1\\didula_audio01.wav"):
+        self.model = whisper.load_model(model_name)
+        self.audio_path = audio_path
+        self.transcription_with_pauses = []
+        self.number_of_pauses = 0
+        self.device = 0 if torch.cuda.is_available() else -1
+        print("SpeechAnalyzer initialized.")
 
-# Initialize list to store transcriptions
-transcriptions = []
+    def transcribe_audio(self):
+        result = self.model.transcribe(
+            self.audio_path,
+            fp16=False,
+            word_timestamps=True,
+            initial_prompt=(
+                "Please transcribe exactly as spoken. Include every um, uh, ah, er, pause, repetition, "
+                "and false start. Do not clean up or correct the speech. Transcribe with maximum verbatim accuracy."
+            )
+        )
+        self.transcription_with_pauses = result["segments"]  # Store transcription data
+        print(result)  # Print the full result
 
-# Initialize pyaudio for microphone input
-p = pyaudio.PyAudio()
-
-# Open microphone stream
-stream = p.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=8000)
-stream.start_stream()
-
-print("Listening...")
-
-last_transcription_time = time.time()  # Time of last transcription
-
-while True:
-    try:
-        # Read audio data from the microphone
-        data = stream.read(4000)
-        audio_data = np.frombuffer(data, dtype=np.int16)
-        
-        # Apply noise reduction
-        reduced_noise = nr.reduce_noise(y=audio_data, sr=16000)
-        
-        # Recognize the audio with Vosk
-        if recognizer.AcceptWaveform(reduced_noise.tobytes()):
-            result = json.loads(recognizer.Result())  # Parse the result
-            transcription = result.get('text', '')
-            
-            if transcription:  # Only add non-empty transcriptions
-                # Get the current time
-                current_time = time.time()
-                
-                # Check if the time between this transcription and the last is significant (indicating pause)
-                time_diff = current_time - last_transcription_time
-                
-                # If there's a significant pause (more than 2 seconds), consider it the end of a sentence
-                if time_diff > 2:  # 2 seconds pause indicates a sentence break
-                    # Add a full stop to the transcription if it's a complete sentence
-                    transcription = transcription.strip() + '.'
-                
-                # Add the transcription to the list
-                transcriptions.append(transcription)
-                
-                # Print the updated transcription list
-                print(f"Transcription: {', '.join(transcriptions)}\n")
-                
-                # Update the time of the last transcription
-                last_transcription_time = current_time
+# Example usage
+if __name__ == "__main__":
+    analyzer = SpeechAnalyzer()
+    analyzer.transcribe_audio()
     
-    except Exception as e:
-        print(f"Error: {e}")
