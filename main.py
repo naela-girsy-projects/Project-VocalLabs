@@ -1,7 +1,8 @@
 import whisper
-import torch
 import re
 from transformers import pipeline
+import os
+import torch
 
 class SpeechAnalyzer:
     def __init__(self, model_name="medium", audio_path="D:\\IntelijiProjects\\sampleCheck1\\didula_audio01.wav"):
@@ -24,7 +25,7 @@ class SpeechAnalyzer:
             )
         )
         return result  # Return full transcription result
-    
+
     def process_transcription(self, result):
         for i in range(len(result['segments'])):
             segment = result['segments'][i]
@@ -56,7 +57,7 @@ class SpeechAnalyzer:
 
         self.transcription_with_pauses = ' '.join(self.transcription_with_pauses)
         self.transcription_with_pauses = re.sub(r'\s+', ' ', self.transcription_with_pauses).strip()
-    
+
     def filler_word_detection(self, transcription):
         filler_count = 0
         filler_words = ["um", "uh", "ah", "ugh", "you know"]
@@ -68,9 +69,24 @@ class SpeechAnalyzer:
         result = self.topic_analyzer(transcription, topics)
         return result
 
-# Example usage
+    def print_analysis(self, transcription, topics):
+        print("\nTranscription with pauses:\n")
+        print(self.transcription_with_pauses)
+        print("\nNumber of pauses detected:", self.number_of_pauses)
+        filler_count = self.filler_word_detection(transcription)
+        print("\nNumber of filler words detected:", filler_count)
+        topic_relevance = self.analyze_topic_relevance(transcription, topics)
+        print("\nTopic Relevance Analysis:")
+        for label, score in zip(topic_relevance['labels'], topic_relevance['scores']):
+            print(f"{label}: {score * 100:.2f}%")
+
+
 if __name__ == "__main__":
     analyzer = SpeechAnalyzer()
-    result = analyzer.transcribe_audio()
-    print(result["text"])  # Print only the transcript text
-    analyzer.process_transcription(result)
+    transcription_result = analyzer.transcribe_audio()
+    analyzer.process_transcription(transcription_result)
+    topics = [
+        "technology", "health", "education", "finance", "politics", "environment", "sports", "entertainment",
+        "science", "travel", "business", "culture", "history", "law", "religion"
+    ]
+    analyzer.print_analysis(transcription_result["text"], topics)
