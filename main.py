@@ -1,62 +1,70 @@
-import vosk
-import pyaudio
-import json
-import noisereduce as nr
-import numpy as np
-import time
+import whisper
+import torch
+import re
+from transformers import pipeline
 
-# Update the path to where you downloaded and extracted the model
-model = vosk.Model("D:/IIT/SDGP/Project_VocalLabs/vosk_model")  # Correct model path
-recognizer = vosk.KaldiRecognizer(model, 16000)
 
-# Initialize list to store transcriptions
-transcriptions = []
+class SpeechAnalyzer:
+    def __init__(self, model_name="medium", audio_path="D:\\IntelijiProjects\\sampleCheck1\\didula_audio01.wav"):
+        self.model = whisper.load_model(model_name)
+        self.audio_path = audio_path
+        self.transcription_with_pauses = []
+        self.number_of_pauses = 0
+        self.device = 0 if torch.cuda.is_available() else -1
+        self.topic_analyzer = pipeline("zero-shot-classification", model="facebook/bart-large-mnli", device=self.device)
+        print("SpeechAnalyzer initialized.")
 
-# Initialize pyaudio for microphone input
-p = pyaudio.PyAudio()
+    def transcribe_audio(self):
+        result = self.model.transcribe(
+            self.audio_path,
+            fp16=False,
+            word_timestamps=True,
+            initial_prompt=(
+                "Please transcribe exactly as spoken. Include every um, uh, ah, er, pause, repetition, "
+                "and false start. Do not clean up or correct the speech. Transcribe with maximum verbatim accuracy."
+            )
+        )
+        return result
 
-# Open microphone stream
-stream = p.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=8000)
-stream.start_stream()
+    def process_transcription(self, result):
+        for i in range(len(result['segments'])):
+            segment = result['segments'][i]
+            words_in_segment = segment.get('words', [])
 
-print("Listening...")
+            for j in range(len(words_in_segment)):
+                word_info = words_in_segment[j]
+                word = word_info['word']
+                self.transcription_with_pauses.append(word)
 
-last_transcription_time = time.time()  # Time of last transcription
+                if j < len(words_in_segment) - 1:
+                    current_word_end = word_info['end']
+                    next_word_start = words_in_segment[j + 1]['start']
+                    time_gap = next_word_start - current_word_end
+                    if time_gap >= 1.0:
+                        pause_duration = round(time_gap, 1)
+                        pause_marker = f"[{pause_duration} second pause]"
+                        self.transcription_with_pauses.append(pause_marker)
 
-while True:
-    try:
-        # Read audio data from the microphone
-        data = stream.read(4000)
-        audio_data = np.frombuffer(data, dtype=np.int16)
-        
-        # Apply noise reduction
-        reduced_noise = nr.reduce_noise(y=audio_data, sr=16000)
-        
-        # Recognize the audio with Vosk
-        if recognizer.AcceptWaveform(reduced_noise.tobytes()):
-            result = json.loads(recognizer.Result())  # Parse the result
-            transcription = result.get('text', '')
-            
-            if transcription:  # Only add non-empty transcriptions
-                # Get the current time
-                current_time = time.time()
-                
-                # Check if the time between this transcription and the last is significant (indicating pause)
-                time_diff = current_time - last_transcription_time
-                
-                # If there's a significant pause (more than 2 seconds), consider it the end of a sentence
-                if time_diff > 2:  # 2 seconds pause indicates a sentence break
-                    # Add a full stop to the transcription if it's a complete sentence
-                    transcription = transcription.strip() + '.'
-                
-                # Add the transcription to the list
-                transcriptions.append(transcription)
-                
-                # Print the updated transcription list
-                print(f"Transcription: {', '.join(transcriptions)}\n")
-                
-                # Update the time of the last transcription
-                last_transcription_time = current_time
-    
-    except Exception as e:
-        print(f"Error: {e}")
+            if i < len(result['segments']) - 1:
+                current_segment_end = segment['end']
+                next_segment_start = result['segments'][i + 1]['start']
+                time_gap = next_segment_start - current_segment_end
+                if time_gap >= 2.0:
+                    pause_duration = round(time_gap, 1)
+                    pause_marker = f"[{pause_duration} second pause]"
+                    self.transcription_with_pauses.append(pause_marker)
+                    self.number_of_pauses += 1
+
+        self.transcription_with_pauses = ' '.join(self.transcription_with_pauses)
+        self.transcription_with_pauses = re.sub(r'\s+', ' ', self.transcription_with_pauses).strip()
+
+    def filler_word_detection(self, transcription):
+        filler_count = 0
+        filler_words = ["um", "uh", "ah", "ugh", "you know"]
+        for word in filler_words:
+            filler_count += len(re.findall(r'\b' + re.escape(word) + r'\b', transcription.lower()))
+        return filler_count
+
+    def analyze_topic_relevance(self, transcription, topics):
+        result = self.topic_analyzer(transcription, topics)
+        return result
