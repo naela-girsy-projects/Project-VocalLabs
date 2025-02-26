@@ -54,7 +54,13 @@ class SpeechAnalyzer:
 
         self.transcription_with_pauses = ' '.join(self.transcription_with_pauses)
         self.transcription_with_pauses = re.sub(r'\s+', ' ', self.transcription_with_pauses).strip()
-        print(self.transcription_with_pauses)  # Print processed transcription with pauses
+    
+    def filler_word_detection(self, transcription):
+        filler_count = 0
+        filler_words = ["um", "uh", "ah", "ugh", "you know"]
+        for word in filler_words:
+            filler_count += len(re.findall(r'\b' + re.escape(word) + r'\b', transcription.lower()))
+        return filler_count
 
 # Example usage
 if __name__ == "__main__":
