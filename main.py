@@ -1,6 +1,7 @@
 import whisper
 import torch
 import re
+from transformers import pipeline
 
 class SpeechAnalyzer:
     def __init__(self, model_name="medium", audio_path="D:\\IntelijiProjects\\sampleCheck1\\didula_audio01.wav"):
@@ -9,6 +10,7 @@ class SpeechAnalyzer:
         self.transcription_with_pauses = []
         self.number_of_pauses = 0
         self.device = 0 if torch.cuda.is_available() else -1
+        self.topic_analyzer = pipeline("zero-shot-classification", model="facebook/bart-large-mnli", device=self.device)
         print("SpeechAnalyzer initialized.")
 
     def transcribe_audio(self):
@@ -61,6 +63,10 @@ class SpeechAnalyzer:
         for word in filler_words:
             filler_count += len(re.findall(r'\b' + re.escape(word) + r'\b', transcription.lower()))
         return filler_count
+
+    def analyze_topic_relevance(self, transcription, topics):
+        result = self.topic_analyzer(transcription, topics)
+        return result
 
 # Example usage
 if __name__ == "__main__":
