@@ -1,6 +1,5 @@
 import whisper
 import re
-from transformers import pipeline
 import os
 import torch
 import nltk
@@ -14,13 +13,12 @@ except Exception as e:
     print(f"Error downloading NLTK data: {e}")
 
 class SpeechAnalyzer:
-    def __init__(self, model_name="medium", audio_path="D:\\IntelijiProjects\\sampleCheck1\\didula_audio01.wav"):
-        self.model = whisper.load_model(model_name)
+    def __init__(self, model_name="medium", audio_path=r"E:\IIT\Project-VocalLabs\CLI\Record_6.wav"):
+        self.model = whisper.load_model("medium")
         self.audio_path = audio_path
         self.transcription_with_pauses = []
         self.number_of_pauses = 0
         self.device = 0 if torch.cuda.is_available() else -1
-        self.topic_analyzer = pipeline("zero-shot-classification", model="facebook/bart-large-mnli", device=self.device)
         print("SpeechAnalyzer initialized.")
 
     def transcribe_audio(self):
@@ -73,10 +71,6 @@ class SpeechAnalyzer:
         for word in filler_words:
             filler_count += len(re.findall(r'\b' + re.escape(word) + r'\b', transcription.lower()))
         return filler_count
-
-    def analyze_topic_relevance(self, transcription, topics):
-        result = self.topic_analyzer(transcription, topics)
-        return result
 
     def analyze_speech_effectiveness(self, text):
         """Analyze the effectiveness of the speech"""
@@ -144,16 +138,12 @@ class SpeechAnalyzer:
             print(f"Error in speech effectiveness analysis: {e}")
             return None
 
-    def print_analysis(self, transcription, topics):
+    def print_analysis(self, transcription):
         print("\nTranscription with pauses:\n")
         print(self.transcription_with_pauses)
         print("\nNumber of pauses detected:", self.number_of_pauses)
         filler_count = self.filler_word_detection(transcription)
         print("\nNumber of filler words detected:", filler_count)
-        topic_relevance = self.analyze_topic_relevance(transcription, topics)
-        print("\nTopic Relevance Analysis:")
-        for label, score in zip(topic_relevance['labels'], topic_relevance['scores']):
-            print(f"{label}: {score * 100:.2f}%")
 
         effectiveness_results = self.analyze_speech_effectiveness(transcription)
         if effectiveness_results:
@@ -170,8 +160,4 @@ if __name__ == "__main__":
     analyzer = SpeechAnalyzer()
     transcription_result = analyzer.transcribe_audio()
     analyzer.process_transcription(transcription_result)
-    topics = [
-        "technology", "health", "education", "finance", "politics", "environment", "sports", "entertainment",
-        "science", "travel", "business", "culture", "history", "law", "religion"
-    ]
-    analyzer.print_analysis(transcription_result["text"], topics)
+    analyzer.print_analysis(transcription_result["text"])
