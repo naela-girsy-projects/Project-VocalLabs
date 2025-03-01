@@ -1,0 +1,74 @@
+name: vocallabs_flutter_app
+description: "A mobile application designed to provide objective, real-time speech analysis for public speakers."
+
+# The following line prevents the package from being accidentally published to
+# pub.dev using `flutter pub publish`. This is preferred for private packages.
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+# The following defines the version and build number for your application.
+# A version number is three numbers separated by dots, like 1.2.43
+# followed by an optional build number separated by a +.
+# Both the version and the builder number may be overridden in flutter
+# build by specifying --build-name and --build-number, respectively.
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.7.0 <4.0.0'
+
+# Dependencies specify other packages that your package needs in order to work.
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # Core dependencies
+  cupertino_icons: ^1.0.8
+  provider: ^6.1.1
+  shared_preferences: ^2.2.2
+  path_provider: ^2.1.2
+  intl: ^0.19.0
+  
+  # UI related
+  flutter_svg: ^2.0.9
+  fl_chart: ^0.66.0
+  lottie: ^2.7.0
+  shimmer: ^3.0.0
+  cached_network_image: ^3.3.1
+  
+  # Audio related
+  record: ^5.0.4
+  audioplayers: ^5.2.1
+  
+  # Charts and visualization
+  syncfusion_flutter_charts: ^24.1.46
+  
+  # Others
+  permission_handler: ^11.1.0
+  url_launcher: ^6.2.2
+  package_info_plus: ^5.0.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+# The following section is specific to Flutter packages.
+flutter:
+  # The following line ensures that the Material Icons font is
+  # included with your application, so that you can use the icons in
+  # the material Icons class.
+  uses-material-design: true
+
+  # To add assets to your application, add an assets section, like this:
+  assets:
+    - assets/images/Our_Logo.jpg
+
+  # An image asset can refer to one or more resolution-specific "variants", see
+  # https://flutter.dev/assets-and-images/#resolution-aware
+
+  # For details regarding adding assets from package dependencies, see
+  # https://flutter.dev/assets-and-images/#from-packages
+
+  # To add custom fonts to your application, add a fonts section here,
+  # in this "flutter" section. Each entry in this list should have a
+  # "family" key with the font family name, and a "fonts" key with a
+  # list giving the asset and other descriptors for the font.
