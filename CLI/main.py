@@ -6,18 +6,16 @@ import nltk
 import spacy
 from nltk.tokenize import word_tokenize
 
-# Download required NLTK data
 try:
     nltk.download('punkt', quiet=True)
     nltk.download('averaged_perceptron_tagger', quiet=True)
 except Exception as e:
     print(f"Error downloading NLTK data: {e}")
 
-# Load spaCy model for sentence segmentation and POS tagging
 nlp = spacy.load('en_core_web_sm')
 
 class SpeechAnalyzer:
-    def _init_(self, model_name="medium", audio_path=r"E:\IIT\Project-VocalLabs\CLI\Record_6.wav"):
+    def __init__(self, model_name="medium", audio_path=r"D:\2 nd sem\VocalLabs\Project-VocalLabs\CLI\didula_audio01.wav"):
         self.model = whisper.load_model("medium")
         self.audio_path = audio_path
         self.transcription_with_pauses = []
@@ -35,7 +33,7 @@ class SpeechAnalyzer:
                 "and false start. Do not clean up or correct the speech. Transcribe with maximum verbatim accuracy."
             )
         )
-        return result  # Return full transcription result
+        return result
 
     def process_transcription(self, result):
         for i in range(len(result['segments'])):
@@ -69,7 +67,31 @@ class SpeechAnalyzer:
         self.transcription_with_pauses = ' '.join(self.transcription_with_pauses)
         self.transcription_with_pauses = re.sub(r'\s+', ' ', self.transcription_with_pauses).strip()
 
+    def neutralize_time_durations(self, original_audio_duration):
+        total_time = original_audio_duration
+        pauses_pattern = r'\[(\d+\.\d+) second pause\]'
+        pause_matches = re.findall(pauses_pattern, self.transcription_with_pauses)
+
+        total_pause_time = sum(float(duration) for duration in pause_matches)
+        neutralized_duration = total_time - total_pause_time
+
+        words_without_pauses = re.sub(pauses_pattern, '', self.transcription_with_pauses)
+        word_count = len(words_without_pauses.split())
+
+        if word_count > 0:
+            speaking_rate = word_count / neutralized_duration
+            return {
+                'original_duration': total_time,
+                'pause_time': total_pause_time,
+                'neutralized_duration': neutralized_duration,
+                'word_count': word_count,
+                'speaking_rate': round(speaking_rate, 2)
+            }
+        return None
+
     def filler_word_detection(self, transcription):
+        if isinstance(transcription, dict):
+            transcription = transcription.get('text', '')
         filler_count = 0
         filler_words = ["um", "uh", "ah", "ugh", "you know"]
         for word in filler_words:
@@ -77,7 +99,8 @@ class SpeechAnalyzer:
         return filler_count
 
     def analyze_speech_effectiveness(self, text):
-        """Analyze the effectiveness of the speech"""
+        if isinstance(text, dict):
+            text = text.get('text', '')
         try:
             purpose_indicators = [
                 "purpose", "goal", "aim", "objective", "today", "discuss",
@@ -143,31 +166,25 @@ class SpeechAnalyzer:
             return None
 
     def analyze_speech_structure(self, text):
-        """Analyze the structure of the speech"""
+        if isinstance(text, dict):
+            text = text.get('text', '')
         try:
-            # Process the text with spaCy
             doc = nlp(text)
-
-            # Detect sentences and their lengths
             sentences = list(doc.sents)
             num_sentences = len(sentences)
             sentence_lengths = [len(sentence) for sentence in sentences]
             avg_sentence_length = sum(sentence_lengths) / num_sentences if num_sentences > 0 else 0
 
-            # Identify paragraph-like structure based on punctuation (e.g., clear divisions between sections)
             paragraphs = [sent.text for sent in doc.sents if sent.text.strip()]
 
-            # Check if there are significant transitions (using conjunctions and linking words)
             transitions = ["however", "moreover", "thus", "therefore", "in addition"]
             transition_count = sum(1 for token in doc if token.text.lower() in transitions)
 
-            # Check for introduction and conclusion markers
             introduction_keywords = ["introduction", "begin", "start"]
             conclusion_keywords = ["conclusion", "end", "summary"]
             introduction_present = any(keyword in text.lower() for keyword in introduction_keywords)
             conclusion_present = any(keyword in text.lower() for keyword in conclusion_keywords)
 
-            # Structure feedback
             structure_score = 0
             structure_feedback = []
 
@@ -200,14 +217,27 @@ class SpeechAnalyzer:
             print(f"Error in speech structure analysis: {e}")
             return None
 
-    def print_analysis(self, transcription):
+    def print_analysis(self, transcription_result):
         print("\nTranscription with pauses:\n")
         print(self.transcription_with_pauses)
         print("\nNumber of pauses detected:", self.number_of_pauses)
-        filler_count = self.filler_word_detection(transcription)
+        filler_count = self.filler_word_detection(transcription_result)
         print("\nNumber of filler words detected:", filler_count)
 
-        effectiveness_results = self.analyze_speech_effectiveness(transcription)
+        total_duration = 0
+        if isinstance(transcription_result, dict):
+            total_duration = transcription_result.get('duration', 0)
+
+        time_results = self.neutralize_time_durations(total_duration)
+        if time_results:
+            print("\n=== Time Duration Analysis ===")
+            print(f"Original audio duration: {time_results['original_duration']:.2f} seconds")
+            print(f"Total pause time: {time_results['pause_time']:.2f} seconds")
+            print(f"Neutralized speaking time: {time_results['neutralized_duration']:.2f} seconds")
+            print(f"Word count: {time_results['word_count']} words")
+            print(f"Speaking rate: {time_results['speaking_rate']} words per second")
+
+        effectiveness_results = self.analyze_speech_effectiveness(transcription_result)
         if effectiveness_results:
             print("\n=== Speech Effectiveness Analysis ===")
             print(f"Overall effectiveness score: {effectiveness_results['effectiveness_score']}/100")
@@ -218,7 +248,7 @@ class SpeechAnalyzer:
             for feedback in effectiveness_results['feedback']:
                 print(f"- {feedback}")
 
-        structure_results = self.analyze_speech_structure(transcription)
+        structure_results = self.analyze_speech_structure(transcription_result)
         if structure_results:
             print("\n=== Speech Structure Analysis ===")
             print(f"Overall structure score: {structure_results['structure_score']}/100")
@@ -228,8 +258,8 @@ class SpeechAnalyzer:
             for feedback in structure_results['feedback']:
                 print(f"- {feedback}")
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     analyzer = SpeechAnalyzer()
     transcription_result = analyzer.transcribe_audio()
     analyzer.process_transcription(transcription_result)
-    analyzer.print_analysis(transcription_result["text"])
+    analyzer.print_analysis(transcription_result)
