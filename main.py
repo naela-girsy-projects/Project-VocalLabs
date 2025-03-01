@@ -1,4 +1,7 @@
 import whisper
+import re
+from transformers import pipeline
+import os
 import torch
 
 class SpeechAnalyzer:
@@ -8,6 +11,7 @@ class SpeechAnalyzer:
         self.transcription_with_pauses = []
         self.number_of_pauses = 0
         self.device = 0 if torch.cuda.is_available() else -1
+        self.topic_analyzer = pipeline("zero-shot-classification", model="facebook/bart-large-mnli", device=self.device)
         print("SpeechAnalyzer initialized.")
 
     def transcribe_audio(self):
@@ -20,11 +24,69 @@ class SpeechAnalyzer:
                 "and false start. Do not clean up or correct the speech. Transcribe with maximum verbatim accuracy."
             )
         )
-        self.transcription_with_pauses = result["segments"]  # Store transcription data
-        print(result)  # Print the full result
+        return result  # Return full transcription result
 
-# Example usage
+    def process_transcription(self, result):
+        for i in range(len(result['segments'])):
+            segment = result['segments'][i]
+            words_in_segment = segment.get('words', [])
+
+            for j in range(len(words_in_segment)):
+                word_info = words_in_segment[j]
+                word = word_info['word']
+                self.transcription_with_pauses.append(word)
+
+                if j < len(words_in_segment) - 1:
+                    current_word_end = word_info['end']
+                    next_word_start = words_in_segment[j + 1]['start']
+                    time_gap = next_word_start - current_word_end
+                    if time_gap >= 1.0:
+                        pause_duration = round(time_gap, 1)
+                        pause_marker = f"[{pause_duration} second pause]"
+                        self.transcription_with_pauses.append(pause_marker)
+
+            if i < len(result['segments']) - 1:
+                current_segment_end = segment['end']
+                next_segment_start = result['segments'][i + 1]['start']
+                time_gap = next_segment_start - current_segment_end
+                if time_gap >= 2.0:
+                    pause_duration = round(time_gap, 1)
+                    pause_marker = f"[{pause_duration} second pause]"
+                    self.transcription_with_pauses.append(pause_marker)
+                    self.number_of_pauses += 1
+
+        self.transcription_with_pauses = ' '.join(self.transcription_with_pauses)
+        self.transcription_with_pauses = re.sub(r'\s+', ' ', self.transcription_with_pauses).strip()
+
+    def filler_word_detection(self, transcription):
+        filler_count = 0
+        filler_words = ["um", "uh", "ah", "ugh", "you know"]
+        for word in filler_words:
+            filler_count += len(re.findall(r'\b' + re.escape(word) + r'\b', transcription.lower()))
+        return filler_count
+
+    def analyze_topic_relevance(self, transcription, topics):
+        result = self.topic_analyzer(transcription, topics)
+        return result
+
+    def print_analysis(self, transcription, topics):
+        print("\nTranscription with pauses:\n")
+        print(self.transcription_with_pauses)
+        print("\nNumber of pauses detected:", self.number_of_pauses)
+        filler_count = self.filler_word_detection(transcription)
+        print("\nNumber of filler words detected:", filler_count)
+        topic_relevance = self.analyze_topic_relevance(transcription, topics)
+        print("\nTopic Relevance Analysis:")
+        for label, score in zip(topic_relevance['labels'], topic_relevance['scores']):
+            print(f"{label}: {score * 100:.2f}%")
+
+
 if __name__ == "__main__":
     analyzer = SpeechAnalyzer()
-    analyzer.transcribe_audio()
-    
+    transcription_result = analyzer.transcribe_audio()
+    analyzer.process_transcription(transcription_result)
+    topics = [
+        "technology", "health", "education", "finance", "politics", "environment", "sports", "entertainment",
+        "science", "travel", "business", "culture", "history", "law", "religion"
+    ]
+    analyzer.print_analysis(transcription_result["text"], topics)
