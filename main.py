@@ -3,6 +3,15 @@ import re
 from transformers import pipeline
 import os
 import torch
+import nltk
+from nltk.tokenize import word_tokenize
+
+# Download required NLTK data
+try:
+    nltk.download('punkt', quiet=True)
+    nltk.download('averaged_perceptron_tagger', quiet=True)
+except Exception as e:
+    print(f"Error downloading NLTK data: {e}")
 
 class SpeechAnalyzer:
     def __init__(self, model_name="medium", audio_path="D:\\IntelijiProjects\\sampleCheck1\\didula_audio01.wav"):
@@ -69,6 +78,72 @@ class SpeechAnalyzer:
         result = self.topic_analyzer(transcription, topics)
         return result
 
+    def analyze_speech_effectiveness(self, text):
+        """Analyze the effectiveness of the speech"""
+        try:
+            purpose_indicators = [
+                "purpose", "goal", "aim", "objective", "today", "discuss",
+                "explain", "demonstrate", "show", "present", "introduce"
+            ]
+
+            conclusion_indicators = [
+                "conclusion", "finally", "in summary", "to sum up", "therefore",
+                "thus", "consequently", "in closing", "lastly"
+            ]
+
+            words = word_tokenize(text.lower())
+            first_50_words = ' '.join(words[:50])
+
+            has_clear_purpose = any(indicator in first_50_words for indicator in purpose_indicators)
+
+            last_50_words = ' '.join(words[-50:])
+            has_conclusion = any(indicator in last_50_words for indicator in conclusion_indicators)
+
+            sentences = nltk.sent_tokenize(text)
+            avg_sentence_length = sum(len(word_tokenize(sentence)) for sentence in sentences) / len(sentences)
+
+            effectiveness_score = 0
+            feedback = []
+
+            if has_clear_purpose:
+                effectiveness_score += 30
+                feedback.append("Clear purpose statement identified in the introduction.")
+            else:
+                feedback.append("Consider adding a clear purpose statement at the beginning.")
+
+            if 10 <= avg_sentence_length <= 20:
+                effectiveness_score += 20
+                feedback.append("Good sentence length variation for clarity.")
+            else:
+                feedback.append("Consider varying sentence lengths for better flow.")
+
+            if has_conclusion:
+                effectiveness_score += 20
+                feedback.append("Clear conclusion identified.")
+            else:
+                feedback.append("Consider adding a strong concluding statement.")
+
+            transition_words = ["however", "moreover", "furthermore", "additionally", "therefore"]
+            transition_count = sum(1 for word in words if word.lower() in transition_words)
+
+            if transition_count >= 3:
+                effectiveness_score += 30
+                feedback.append("Good use of transition words for coherence.")
+            else:
+                feedback.append("Consider using more transition words to improve flow.")
+
+            return {
+                'effectiveness_score': effectiveness_score,
+                'purpose_clarity': has_clear_purpose,
+                'has_conclusion': has_conclusion,
+                'avg_sentence_length': round(avg_sentence_length, 2),
+                'feedback': feedback
+            }
+
+        except Exception as e:
+            print(f"Error in speech effectiveness analysis: {e}")
+            return None
+
     def print_analysis(self, transcription, topics):
         print("\nTranscription with pauses:\n")
         print(self.transcription_with_pauses)
@@ -80,6 +155,16 @@ class SpeechAnalyzer:
         for label, score in zip(topic_relevance['labels'], topic_relevance['scores']):
             print(f"{label}: {score * 100:.2f}%")
 
+        effectiveness_results = self.analyze_speech_effectiveness(transcription)
+        if effectiveness_results:
+            print("\n=== Speech Effectiveness Analysis ===")
+            print(f"Overall effectiveness score: {effectiveness_results['effectiveness_score']}/100")
+            print(f"Clear purpose identified: {'Yes' if effectiveness_results['purpose_clarity'] else 'No'}")
+            print(f"Conclusion present: {'Yes' if effectiveness_results['has_conclusion'] else 'No'}")
+            print(f"Average sentence length: {effectiveness_results['avg_sentence_length']} words")
+            print("\nFeedback:")
+            for feedback in effectiveness_results['feedback']:
+                print(f"- {feedback}")
 
 if __name__ == "__main__":
     analyzer = SpeechAnalyzer()
