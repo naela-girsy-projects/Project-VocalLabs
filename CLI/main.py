@@ -17,7 +17,7 @@ except Exception as e:
 nlp = spacy.load('en_core_web_sm')
 
 class SpeechAnalyzer:
-    def _init_(self, model_name="medium", audio_path=r"E:\IIT\Project-VocalLabs\CLI\Record_6.wav"):
+    def __init__(self, model_name="medium", audio_path=r"E:\IIT\Project-VocalLabs\CLI\Record_6.wav"):
         self.model = whisper.load_model("medium")
         self.audio_path = audio_path
         self.transcription_with_pauses = []
@@ -26,6 +26,7 @@ class SpeechAnalyzer:
         print("SpeechAnalyzer initialized.")
 
     def transcribe_audio(self):
+        print("Transcribing audio...")  # Debug statement
         result = self.model.transcribe(
             self.audio_path,
             fp16=False,
@@ -35,9 +36,15 @@ class SpeechAnalyzer:
                 "and false start. Do not clean up or correct the speech. Transcribe with maximum verbatim accuracy."
             )
         )
+        print("Audio transcription completed.")  # Debug statement
+        print(result)  # Debug statement to check result
         return result  # Return full transcription result
 
     def process_transcription(self, result):
+        if not result or 'segments' not in result:
+            print("Invalid transcription result.")  # Debug statement
+            return
+        
         for i in range(len(result['segments'])):
             segment = result['segments'][i]
             words_in_segment = segment.get('words', [])
@@ -228,8 +235,12 @@ class SpeechAnalyzer:
             for feedback in structure_results['feedback']:
                 print(f"- {feedback}")
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     analyzer = SpeechAnalyzer()
     transcription_result = analyzer.transcribe_audio()
-    analyzer.process_transcription(transcription_result)
-    analyzer.print_analysis(transcription_result["text"])
+
+    if transcription_result:
+        analyzer.process_transcription(transcription_result)
+        analyzer.print_analysis(transcription_result["text"])
+    else:
+        print("No transcription result. Please check the audio file or the transcription process.")
