@@ -13,7 +13,6 @@ try:
 except Exception as e:
     print(f"Error downloading NLTK data: {e}")
 
-
 class SpeechAnalyzer:
     def __init__(self, model_name="medium", audio_path="D:\\IntelijiProjects\\sampleCheck1\\didula_audio01.wav"):
         self.model = whisper.load_model(model_name)
@@ -156,7 +155,6 @@ class SpeechAnalyzer:
         for label, score in zip(topic_relevance['labels'], topic_relevance['scores']):
             print(f"{label}: {score * 100:.2f}%")
 
-        # Add effectiveness analysis to the output
         effectiveness_results = self.analyze_speech_effectiveness(transcription)
         if effectiveness_results:
             print("\n=== Speech Effectiveness Analysis ===")
@@ -168,7 +166,6 @@ class SpeechAnalyzer:
             for feedback in effectiveness_results['feedback']:
                 print(f"- {feedback}")
 
-
 if __name__ == "__main__":
     analyzer = SpeechAnalyzer()
     transcription_result = analyzer.transcribe_audio()
@@ -178,5 +175,3 @@ if __name__ == "__main__":
         "science", "travel", "business", "culture", "history", "law", "religion"
     ]
     analyzer.print_analysis(transcription_result["text"], topics)
-
-# This is just a comment to check whether the changes are reflected.
