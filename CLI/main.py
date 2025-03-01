@@ -3,6 +3,7 @@ import re
 import os
 import torch
 import nltk
+import spacy
 from nltk.tokenize import word_tokenize
 
 # Download required NLTK data
@@ -12,8 +13,11 @@ try:
 except Exception as e:
     print(f"Error downloading NLTK data: {e}")
 
+# Load spaCy model for sentence segmentation and POS tagging
+nlp = spacy.load('en_core_web_sm')
+
 class SpeechAnalyzer:
-    def __init__(self, model_name="medium", audio_path=r"E:\IIT\Project-VocalLabs\CLI\Record_6.wav"):
+    def _init_(self, model_name="medium", audio_path=r"E:\IIT\Project-VocalLabs\CLI\Record_6.wav"):
         self.model = whisper.load_model("medium")
         self.audio_path = audio_path
         self.transcription_with_pauses = []
@@ -138,6 +142,64 @@ class SpeechAnalyzer:
             print(f"Error in speech effectiveness analysis: {e}")
             return None
 
+    def analyze_speech_structure(self, text):
+        """Analyze the structure of the speech"""
+        try:
+            # Process the text with spaCy
+            doc = nlp(text)
+
+            # Detect sentences and their lengths
+            sentences = list(doc.sents)
+            num_sentences = len(sentences)
+            sentence_lengths = [len(sentence) for sentence in sentences]
+            avg_sentence_length = sum(sentence_lengths) / num_sentences if num_sentences > 0 else 0
+
+            # Identify paragraph-like structure based on punctuation (e.g., clear divisions between sections)
+            paragraphs = [sent.text for sent in doc.sents if sent.text.strip()]
+
+            # Check if there are significant transitions (using conjunctions and linking words)
+            transitions = ["however", "moreover", "thus", "therefore", "in addition"]
+            transition_count = sum(1 for token in doc if token.text.lower() in transitions)
+
+            # Check for introduction and conclusion markers
+            introduction_keywords = ["introduction", "begin", "start"]
+            conclusion_keywords = ["conclusion", "end", "summary"]
+            introduction_present = any(keyword in text.lower() for keyword in introduction_keywords)
+            conclusion_present = any(keyword in text.lower() for keyword in conclusion_keywords)
+
+            # Structure feedback
+            structure_score = 0
+            structure_feedback = []
+
+            if introduction_present:
+                structure_score += 30
+                structure_feedback.append("Clear introduction detected.")
+            else:
+                structure_feedback.append("Consider adding a clear introduction.")
+
+            if conclusion_present:
+                structure_score += 30
+                structure_feedback.append("Clear conclusion detected.")
+            else:
+                structure_feedback.append("Consider adding a clear conclusion.")
+
+            if transition_count >= 3:
+                structure_score += 20
+                structure_feedback.append("Effective use of transitions detected.")
+            else:
+                structure_feedback.append("Consider adding more transitions for coherence.")
+
+            return {
+                'structure_score': structure_score,
+                'avg_sentence_length': round(avg_sentence_length, 2),
+                'num_paragraphs': len(paragraphs),
+                'feedback': structure_feedback
+            }
+
+        except Exception as e:
+            print(f"Error in speech structure analysis: {e}")
+            return None
+
     def print_analysis(self, transcription):
         print("\nTranscription with pauses:\n")
         print(self.transcription_with_pauses)
@@ -156,7 +218,17 @@ class SpeechAnalyzer:
             for feedback in effectiveness_results['feedback']:
                 print(f"- {feedback}")
 
-if __name__ == "__main__":
+        structure_results = self.analyze_speech_structure(transcription)
+        if structure_results:
+            print("\n=== Speech Structure Analysis ===")
+            print(f"Overall structure score: {structure_results['structure_score']}/100")
+            print(f"Average sentence length: {structure_results['avg_sentence_length']} words")
+            print(f"Number of paragraphs: {structure_results['num_paragraphs']}")
+            print("\nFeedback:")
+            for feedback in structure_results['feedback']:
+                print(f"- {feedback}")
+
+if _name_ == "_main_":
     analyzer = SpeechAnalyzer()
     transcription_result = analyzer.transcribe_audio()
     analyzer.process_transcription(transcription_result)
