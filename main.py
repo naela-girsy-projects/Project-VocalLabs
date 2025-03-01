@@ -1,7 +1,18 @@
 import whisper
-import torch
 import re
 from transformers import pipeline
+import os
+import torch
+import nltk
+from nltk.tokenize import word_tokenize
+
+# Download required NLTK data
+try:
+    nltk.download('punkt', quiet=True)
+    nltk.download('averaged_perceptron_tagger', quiet=True)
+except Exception as e:
+    print(f"Error downloading NLTK data: {e}")
+
 
 class SpeechAnalyzer:
     def __init__(self, model_name="medium", audio_path="D:\\IntelijiProjects\\sampleCheck1\\didula_audio01.wav"):
@@ -24,7 +35,7 @@ class SpeechAnalyzer:
             )
         )
         return result  # Return full transcription result
-    
+
     def process_transcription(self, result):
         for i in range(len(result['segments'])):
             segment = result['segments'][i]
@@ -56,7 +67,7 @@ class SpeechAnalyzer:
 
         self.transcription_with_pauses = ' '.join(self.transcription_with_pauses)
         self.transcription_with_pauses = re.sub(r'\s+', ' ', self.transcription_with_pauses).strip()
-    
+
     def filler_word_detection(self, transcription):
         filler_count = 0
         filler_words = ["um", "uh", "ah", "ugh", "you know"]
@@ -68,9 +79,104 @@ class SpeechAnalyzer:
         result = self.topic_analyzer(transcription, topics)
         return result
 
-# Example usage
+    def analyze_speech_effectiveness(self, text):
+        """Analyze the effectiveness of the speech"""
+        try:
+            purpose_indicators = [
+                "purpose", "goal", "aim", "objective", "today", "discuss",
+                "explain", "demonstrate", "show", "present", "introduce"
+            ]
+
+            conclusion_indicators = [
+                "conclusion", "finally", "in summary", "to sum up", "therefore",
+                "thus", "consequently", "in closing", "lastly"
+            ]
+
+            words = word_tokenize(text.lower())
+            first_50_words = ' '.join(words[:50])
+
+            has_clear_purpose = any(indicator in first_50_words for indicator in purpose_indicators)
+
+            last_50_words = ' '.join(words[-50:])
+            has_conclusion = any(indicator in last_50_words for indicator in conclusion_indicators)
+
+            sentences = nltk.sent_tokenize(text)
+            avg_sentence_length = sum(len(word_tokenize(sentence)) for sentence in sentences) / len(sentences)
+
+            effectiveness_score = 0
+            feedback = []
+
+            if has_clear_purpose:
+                effectiveness_score += 30
+                feedback.append("Clear purpose statement identified in the introduction.")
+            else:
+                feedback.append("Consider adding a clear purpose statement at the beginning.")
+
+            if 10 <= avg_sentence_length <= 20:
+                effectiveness_score += 20
+                feedback.append("Good sentence length variation for clarity.")
+            else:
+                feedback.append("Consider varying sentence lengths for better flow.")
+
+            if has_conclusion:
+                effectiveness_score += 20
+                feedback.append("Clear conclusion identified.")
+            else:
+                feedback.append("Consider adding a strong concluding statement.")
+
+            transition_words = ["however", "moreover", "furthermore", "additionally", "therefore"]
+            transition_count = sum(1 for word in words if word.lower() in transition_words)
+
+            if transition_count >= 3:
+                effectiveness_score += 30
+                feedback.append("Good use of transition words for coherence.")
+            else:
+                feedback.append("Consider using more transition words to improve flow.")
+
+            return {
+                'effectiveness_score': effectiveness_score,
+                'purpose_clarity': has_clear_purpose,
+                'has_conclusion': has_conclusion,
+                'avg_sentence_length': round(avg_sentence_length, 2),
+                'feedback': feedback
+            }
+
+        except Exception as e:
+            print(f"Error in speech effectiveness analysis: {e}")
+            return None
+
+    def print_analysis(self, transcription, topics):
+        print("\nTranscription with pauses:\n")
+        print(self.transcription_with_pauses)
+        print("\nNumber of pauses detected:", self.number_of_pauses)
+        filler_count = self.filler_word_detection(transcription)
+        print("\nNumber of filler words detected:", filler_count)
+        topic_relevance = self.analyze_topic_relevance(transcription, topics)
+        print("\nTopic Relevance Analysis:")
+        for label, score in zip(topic_relevance['labels'], topic_relevance['scores']):
+            print(f"{label}: {score * 100:.2f}%")
+
+        # Add effectiveness analysis to the output
+        effectiveness_results = self.analyze_speech_effectiveness(transcription)
+        if effectiveness_results:
+            print("\n=== Speech Effectiveness Analysis ===")
+            print(f"Overall effectiveness score: {effectiveness_results['effectiveness_score']}/100")
+            print(f"Clear purpose identified: {'Yes' if effectiveness_results['purpose_clarity'] else 'No'}")
+            print(f"Conclusion present: {'Yes' if effectiveness_results['has_conclusion'] else 'No'}")
+            print(f"Average sentence length: {effectiveness_results['avg_sentence_length']} words")
+            print("\nFeedback:")
+            for feedback in effectiveness_results['feedback']:
+                print(f"- {feedback}")
+
+
 if __name__ == "__main__":
     analyzer = SpeechAnalyzer()
-    result = analyzer.transcribe_audio()
-    print(result["text"])  # Print only the transcript text
-    analyzer.process_transcription(result)
+    transcription_result = analyzer.transcribe_audio()
+    analyzer.process_transcription(transcription_result)
+    topics = [
+        "technology", "health", "education", "finance", "politics", "environment", "sports", "entertainment",
+        "science", "travel", "business", "culture", "history", "law", "religion"
+    ]
+    analyzer.print_analysis(transcription_result["text"], topics)
+
+# This is just a comment to check whether the changes are reflected.
