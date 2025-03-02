@@ -20,8 +20,10 @@ except:
     nlp = spacy.load('en_core_web_sm')
 
 class SpeechAnalyzer:
+
     def __init__(self, model_name="medium", audio_path=r"D:\2 nd sem\VocalLabs\Project-VocalLabs\CLI\didula_audio01.wav"):
         self.model = whisper.load_model(model_name)
+
         self.audio_path = audio_path
         self.transcription_with_pauses = []
         self.number_of_pauses = 0
@@ -29,6 +31,7 @@ class SpeechAnalyzer:
         print("SpeechAnalyzer initialized.")
 
     def transcribe_audio(self):
+        print("Transcribing audio...")  # Debug statement
         result = self.model.transcribe(
             self.audio_path,
             fp16=False,
@@ -38,11 +41,13 @@ class SpeechAnalyzer:
                 "and false start. Do not clean up or correct the speech. Transcribe with maximum verbatim accuracy."
             )
         )
+
         return result
 
     def process_transcription(self, result):
         self.transcription_with_pauses = []
         self.number_of_pauses = 0
+
 
         for i in range(len(result['segments'])):
             segment = result['segments'][i]
@@ -304,6 +309,7 @@ class SpeechAnalyzer:
                 print(f"- {feedback}")
 
 
+
 # Make sure required packages are installed
 def ensure_packages():
     try:
@@ -341,3 +347,5 @@ if __name__ == "__main__":
         import traceback
         print(f"An error occurred during analysis: {e}")
         traceback.print_exc()
+
+
