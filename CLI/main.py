@@ -5,6 +5,7 @@ import torch
 import nltk
 import spacy
 from nltk.tokenize import word_tokenize
+from collections import Counter
 
 try:
     nltk.download('punkt', quiet=True)
@@ -21,7 +22,7 @@ except:
 
 class SpeechAnalyzer:
 
-    def __init__(self, model_name="medium", audio_path=r"D:\2 nd sem\VocalLabs\Project-VocalLabs\CLI\didula_audio01.wav"):
+    def _init_(self, model_name="medium", audio_path=r"D:\2 nd sem\VocalLabs\Project-VocalLabs\CLI\didula_audio01.wav"):
         self.model = whisper.load_model(model_name)
 
         self.audio_path = audio_path
@@ -271,6 +272,176 @@ class SpeechAnalyzer:
             print(f"Error in speech structure analysis: {e}")
             return None
 
+    def analyze_grammar_and_word_selection(self, text):
+        if isinstance(text, dict):
+            text = text.get('text', '')
+
+        try:
+            # Clean the text by removing pause indicators
+            clean_text = re.sub(r'\[\d+\.\d+ second pause\]', '', text)
+
+            # Process with spaCy
+            doc = nlp(clean_text)
+
+            # Grammar analysis
+            # Count potential grammar issues
+            grammar_issues = 0
+            subject_verb_issues = 0
+            preposition_issues = 0
+
+            # Extract sentences for analysis
+            sentences = list(doc.sents)
+            total_sentences = len(sentences)
+
+            for sent in sentences:
+                # Check for basic subject-verb agreement
+                subjects = [token for token in sent if "subj" in token.dep_]
+                verbs = [token for token in sent if token.pos_ == "VERB"]
+
+                # Simple heuristic for subject-verb agreement issues
+                if subjects and verbs:
+                    for subj in subjects:
+                        for verb in verbs:
+                            if subj.is_ancestor(verb) and abs(subj.i - verb.i) > 5:
+                                subject_verb_issues += 1
+
+                # Check for missing prepositions
+                for token in sent:
+                    if token.dep_ == "prep" and token.head.pos_ in ["VERB", "NOUN"]:
+                        if len([child for child in token.children]) == 0:
+                            preposition_issues += 1
+
+            grammar_issues = subject_verb_issues + preposition_issues
+
+            # Word selection analysis
+            words = [token.text.lower() for token in doc if token.is_alpha and not token.is_stop]
+            total_words = len(words)
+
+            # Calculate lexical diversity (Type-Token Ratio)
+            if total_words > 0:
+                unique_words = len(set(words))
+                lexical_diversity = unique_words / total_words
+            else:
+                lexical_diversity = 0
+
+            # Check for repetitive word usage
+            word_counter = Counter(words)
+            repeated_words = [word for word, count in word_counter.items() if count > 3]
+
+            # Advanced vocabulary usage
+            advanced_vocab_count = 0
+            basic_words = set(["good", "bad", "nice", "thing", "stuff", "big", "small", "very", "really",
+                              "like", "said", "went", "got", "put", "took", "made", "did", "get", "know"])
+
+            # Check for advanced vocabulary
+            for word in set(words):
+                if len(word) > 7 and word not in basic_words:
+                    advanced_vocab_count += 1
+
+            # Calculate scores
+            grammar_score = 0
+            word_selection_score = 0
+
+            # Grammar scoring
+            if total_sentences > 0:
+                grammar_issue_ratio = grammar_issues / total_sentences
+                if grammar_issue_ratio < 0.1:
+                    grammar_score = 50
+                elif grammar_issue_ratio < 0.2:
+                    grammar_score = 40
+                elif grammar_issue_ratio < 0.3:
+                    grammar_score = 30
+                elif grammar_issue_ratio < 0.5:
+                    grammar_score = 20
+                else:
+                    grammar_score = 10
+
+            # Word selection scoring
+            if lexical_diversity > 0.7:
+                word_selection_score += 20
+            elif lexical_diversity > 0.5:
+                word_selection_score += 15
+            elif lexical_diversity > 0.3:
+                word_selection_score += 10
+            else:
+                word_selection_score += 5
+
+            # Advanced vocabulary bonus
+            if total_words > 0:
+                advanced_ratio = advanced_vocab_count / total_words
+                if advanced_ratio > 0.2:
+                    word_selection_score += 20
+                elif advanced_ratio > 0.1:
+                    word_selection_score += 15
+                elif advanced_ratio > 0.05:
+                    word_selection_score += 10
+                else:
+                    word_selection_score += 5
+
+            # Repetition penalty
+            if len(repeated_words) > 5:
+                word_selection_score = max(0, word_selection_score - 10)
+            elif len(repeated_words) > 3:
+                word_selection_score = max(0, word_selection_score - 5)
+
+            # Prepare feedback
+            feedback = []
+
+            if grammar_score >= 40:
+                feedback.append("Grammar is generally correct and well structured.")
+            elif grammar_score >= 20:
+                feedback.append("Some grammatical issues detected. Pay attention to subject-verb agreement and preposition usage.")
+            else:
+                feedback.append("Several grammatical errors detected. Consider reviewing basic grammar rules.")
+
+            if lexical_diversity > 0.5:
+                feedback.append("Good vocabulary diversity and word choice.")
+            else:
+                feedback.append("Consider using a wider range of vocabulary to enhance your speech.")
+
+            if len(repeated_words) > 3:
+                feedback.append(f"Repetitive use of words detected: {', '.join(repeated_words[:3])}...")
+
+            if advanced_vocab_count > 10:
+                feedback.append("Excellent use of advanced vocabulary.")
+            elif advanced_vocab_count > 5:
+                feedback.append("Good use of complex words. Consider incorporating more advanced vocabulary.")
+            else:
+                feedback.append("Consider using more sophisticated vocabulary where appropriate.")
+
+            # Calculate combined score
+            combined_score = grammar_score + word_selection_score
+
+            return {
+                'grammar_score': grammar_score,
+                'word_selection_score': word_selection_score,
+                'combined_score': combined_score,
+                'lexical_diversity': round(lexical_diversity, 2),
+                'unique_words': len(set(words)) if words else 0,
+                'repeated_words': repeated_words[:5],  # Show only top 5
+                'advanced_vocab_count': advanced_vocab_count,
+                'grammar_issues': grammar_issues,
+                'feedback': feedback
+            }
+
+        except Exception as e:
+            print(f"Error in grammar and word selection analysis: {e}")
+            return None
+            
+    def analyze_pronunciation_quality(self, audio_data=None, transcription=None):
+        """
+        Analyzes the pronunciation quality of speech by comparing audio data with expected pronunciation.
+        
+        Args:
+            audio_data: Audio data or path to evaluate (optional)
+            transcription: Transcription data or expected text (optional)
+            
+        Returns:
+            Dictionary containing pronunciation quality metrics or None if not implemented
+        """
+        # Method declaration only - not implemented
+        return None
+
     def print_analysis(self, transcription_result):
         print("\nTranscription with pauses:\n")
         print(self.transcription_with_pauses)
@@ -308,6 +479,20 @@ class SpeechAnalyzer:
             for feedback in structure_results['feedback']:
                 print(f"- {feedback}")
 
+        grammar_results = self.analyze_grammar_and_word_selection(transcription_result)
+        if grammar_results:
+            print("\n=== Grammar and Word Selection Analysis ===")
+            print(f"Grammar score: {grammar_results['grammar_score']}/50")
+            print(f"Word selection score: {grammar_results['word_selection_score']}/50")
+            print(f"Combined score: {grammar_results['combined_score']}/100")
+            print(f"Lexical diversity: {grammar_results['lexical_diversity']}")
+            print(f"Unique words used: {grammar_results['unique_words']}")
+            print(f"Advanced vocabulary count: {grammar_results['advanced_vocab_count']}")
+            if grammar_results['repeated_words']:
+                print(f"Frequently repeated words: {', '.join(grammar_results['repeated_words'])}")
+            print("\nFeedback:")
+            for feedback in grammar_results['feedback']:
+                print(f"- {feedback}")
 
 
 # Make sure required packages are installed
@@ -326,7 +511,7 @@ def ensure_packages():
 
 
 # Execute the analysis when running the script
-if __name__ == "__main__":
+if _name_ == "_main_":
     try:
         ensure_packages()
 
@@ -347,5 +532,3 @@ if __name__ == "__main__":
         import traceback
         print(f"An error occurred during analysis: {e}")
         traceback.print_exc()
-
-
