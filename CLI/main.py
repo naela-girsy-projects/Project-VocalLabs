@@ -310,7 +310,7 @@ class SpeechAnalyzer:
 
 
 
-# Make sure required packages are installed
+
 def ensure_packages():
     try:
         import soundfile
@@ -325,7 +325,7 @@ def ensure_packages():
         os.system("pip install wave")
 
 
-# Execute the analysis when running the script
+
 if __name__ == "__main__":
     try:
         ensure_packages()
