@@ -4,7 +4,7 @@ import 'package:vocallabs_flutter_app/utils/constants.dart';
 
 // Screens
 import 'package:vocallabs_flutter_app/screens/splash_screen.dart';
-import 'package:vocallabs_flutter_app/screens/landing_screen.dart';
+import 'package:vocallabs_flutter_app/screens/welcome_screen.dart'; // Add this import
 import 'package:vocallabs_flutter_app/screens/login_screen.dart';
 import 'package:vocallabs_flutter_app/screens/registration_screen.dart';
 import 'package:vocallabs_flutter_app/screens/home_screen.dart';
@@ -25,7 +25,8 @@ import 'package:vocallabs_flutter_app/screens/tutorial_help_screen.dart';
 import 'package:vocallabs_flutter_app/screens/search_screen.dart';
 import 'package:vocallabs_flutter_app/screens/account_settings_screen.dart';
 import 'package:vocallabs_flutter_app/screens/payment_gateway_screen.dart';
-import 'package:vocallabs_flutter_app/screens/upload_confirmation_screen.dart'; // Add this import
+import 'package:vocallabs_flutter_app/screens/upload_confirmation_screen.dart';
+import 'package:vocallabs_flutter_app/screens/startup_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -42,7 +43,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primaryColor: AppColors.primaryBlue,
         scaffoldBackgroundColor: AppColors.background,
-        fontFamily: 'Poppins', // Make sure to add this font in pubspec.yaml
+        fontFamily: 'Poppins',
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white,
           foregroundColor: AppColors.darkText,
@@ -84,7 +85,7 @@ class MyApp extends StatelessWidget {
       initialRoute: '/splash',
       routes: {
         '/splash': (context) => const SplashScreen(),
-        '/landing': (context) => const LandingScreen(),
+        '/welcome': (context) => const WelcomeScreen(),
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegistrationScreen(),
         '/home': (context) => const HomeScreen(),
@@ -107,8 +108,8 @@ class MyApp extends StatelessWidget {
         '/search': (context) => const SearchScreen(),
         '/account': (context) => const AccountSettingsScreen(),
         '/payment': (context) => const PaymentGatewayScreen(),
-        '/upload_confirmation':
-            (context) => const UploadConfirmationScreen(), // Add this route
+        '/upload_confirmation': (context) => const UploadConfirmationScreen(),
+        '/startup': (context) => const StartupScreen(),
       },
     );
   }
