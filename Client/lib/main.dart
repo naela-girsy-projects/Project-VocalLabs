@@ -23,7 +23,8 @@ import 'package:vocallabs_flutter_app/screens/contact_us_screen.dart';
 import 'package:vocallabs_flutter_app/screens/notification_center_screen.dart';
 import 'package:vocallabs_flutter_app/screens/tutorial_help_screen.dart';
 import 'package:vocallabs_flutter_app/screens/search_screen.dart';
-import 'package:vocallabs_flutter_app/screens/account_settings_screen.dart'; // Add this import
+import 'package:vocallabs_flutter_app/screens/account_settings_screen.dart';
+import 'package:vocallabs_flutter_app/screens/payment_gateway_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -105,6 +106,7 @@ class MyApp extends StatelessWidget {
         '/search': (context) => const SearchScreen(),
         '/account':
             (context) => const AccountSettingsScreen(), // Add this route
+        '/payment': (context) => const PaymentGatewayScreen(),
       },
     );
   }
