@@ -23,6 +23,7 @@ import 'package:vocallabs_flutter_app/screens/contact_us_screen.dart';
 import 'package:vocallabs_flutter_app/screens/notification_center_screen.dart';
 import 'package:vocallabs_flutter_app/screens/tutorial_help_screen.dart';
 import 'package:vocallabs_flutter_app/screens/search_screen.dart';
+import 'package:vocallabs_flutter_app/screens/account_settings_screen.dart'; // Add this import
 
 void main() {
   runApp(const MyApp());
@@ -102,6 +103,8 @@ class MyApp extends StatelessWidget {
         '/notifications': (context) => const NotificationCenterScreen(),
         '/tutorial': (context) => const TutorialHelpScreen(),
         '/search': (context) => const SearchScreen(),
+        '/account':
+            (context) => const AccountSettingsScreen(), // Add this route
       },
     );
   }
