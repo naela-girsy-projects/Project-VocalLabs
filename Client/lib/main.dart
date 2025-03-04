@@ -25,6 +25,7 @@ import 'package:vocallabs_flutter_app/screens/tutorial_help_screen.dart';
 import 'package:vocallabs_flutter_app/screens/search_screen.dart';
 import 'package:vocallabs_flutter_app/screens/account_settings_screen.dart';
 import 'package:vocallabs_flutter_app/screens/payment_gateway_screen.dart';
+import 'package:vocallabs_flutter_app/screens/upload_confirmation_screen.dart'; // Add this import
 
 void main() {
   runApp(const MyApp());
@@ -104,9 +105,10 @@ class MyApp extends StatelessWidget {
         '/notifications': (context) => const NotificationCenterScreen(),
         '/tutorial': (context) => const TutorialHelpScreen(),
         '/search': (context) => const SearchScreen(),
-        '/account':
-            (context) => const AccountSettingsScreen(), // Add this route
+        '/account': (context) => const AccountSettingsScreen(),
         '/payment': (context) => const PaymentGatewayScreen(),
+        '/upload_confirmation':
+            (context) => const UploadConfirmationScreen(), // Add this route
       },
     );
   }
