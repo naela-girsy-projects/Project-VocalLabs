@@ -1,10 +1,9 @@
-// lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:vocallabs_flutter_app/utils/constants.dart';
 
 // Screens
 import 'package:vocallabs_flutter_app/screens/splash_screen.dart';
-import 'package:vocallabs_flutter_app/screens/welcome_screen.dart'; // Add this import
+import 'package:vocallabs_flutter_app/screens/welcome_screen.dart';
 import 'package:vocallabs_flutter_app/screens/login_screen.dart';
 import 'package:vocallabs_flutter_app/screens/registration_screen.dart';
 import 'package:vocallabs_flutter_app/screens/home_screen.dart';
@@ -91,8 +90,7 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const HomeScreen(),
         '/analysis': (context) => const AudioRecordingScreen(),
         '/playback': (context) => const SpeechPlaybackScreen(),
-        '/playback_history':
-            (context) => const SpeechPlaybackScreen(isFromHistory: true),
+        '/playback_history': (context) => const SpeechPlaybackScreen(isFromHistory: true),
         '/feedback': (context) => const FeedbackScreen(),
         '/profile': (context) => const ProfileScreen(),
         '/history': (context) => const SpeechHistoryScreen(),
