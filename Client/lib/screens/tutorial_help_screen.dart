@@ -44,6 +44,12 @@ class _TutorialHelpScreenState extends State<TutorialHelpScreen> {
     },
   ];
 
+  void _toggleFaq(int index) {
+    setState(() {
+      _faqItems[index]['isExpanded'] = !_faqItems[index]['isExpanded'];
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -96,24 +102,7 @@ class _TutorialHelpScreenState extends State<TutorialHelpScreen> {
                   // Play tutorial video
                 },
               ),
-              const SizedBox(height: 12),
-              _buildVideoTutorialItem(
-                title: 'Understanding Your Analysis',
-                duration: '5:20',
-                thumbnail: 'assets/images/tutorial_2.jpg',
-                onTap: () {
-                  // Play tutorial video
-                },
-              ),
-              const SizedBox(height: 12),
-              _buildVideoTutorialItem(
-                title: 'Advanced Speech Techniques',
-                duration: '7:15',
-                thumbnail: 'assets/images/tutorial_3.jpg',
-                onTap: () {
-                  // Play tutorial video
-                },
-              ),
+
               const SizedBox(height: 24),
               const Text(
                 'Frequently Asked Questions',
@@ -125,21 +114,18 @@ class _TutorialHelpScreenState extends State<TutorialHelpScreen> {
                   elevation: 0,
                   expandedHeaderPadding: EdgeInsets.zero,
                   dividerColor: Colors.grey.shade200,
-                  expansionCallback: (int index, bool isExpanded) {
-                    setState(() {
-                      _faqItems[index]['isExpanded'] = !isExpanded;
-                    });
+                  expansionCallback: (index, isExpanded) {
+                    _toggleFaq(index);
                   },
                   children:
-                      _faqItems.map<ExpansionPanel>((
-                        Map<String, dynamic> item,
-                      ) {
+                      _faqItems.map<ExpansionPanel>((item) {
                         return ExpansionPanel(
-                          headerBuilder: (
-                            BuildContext context,
-                            bool isExpanded,
-                          ) {
+                          headerBuilder: (context, isExpanded) {
                             return ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
                               title: Text(
                                 item['question'],
                                 style: AppTextStyles.body1.copyWith(
@@ -152,10 +138,14 @@ class _TutorialHelpScreenState extends State<TutorialHelpScreen> {
                             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                             child: Text(
                               item['answer'],
-                              style: AppTextStyles.body2,
+                              style: AppTextStyles.body2.copyWith(
+                                color: AppColors.lightText,
+                                height: 1.5,
+                              ),
                             ),
                           ),
                           isExpanded: item['isExpanded'],
+                          canTapOnHeader: true,
                         );
                       }).toList(),
                 ),
@@ -168,19 +158,10 @@ class _TutorialHelpScreenState extends State<TutorialHelpScreen> {
                   children: [
                     _buildHelpOption(
                       icon: Icons.email_outlined,
-                      title: 'Email Support',
+                      title: 'Contact Us',
                       description: 'Get help via email within 24 hours',
                       onTap: () {
                         Navigator.pushNamed(context, '/contact');
-                      },
-                    ),
-                    const Divider(),
-                    _buildHelpOption(
-                      icon: Icons.chat_bubble_outline,
-                      title: 'Live Chat',
-                      description: 'Chat with our support team',
-                      onTap: () {
-                        // Open live chat
                       },
                     ),
                     const Divider(),

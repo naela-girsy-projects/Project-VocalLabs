@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:vocallabs_flutter_app/utils/constants.dart';
 import 'package:vocallabs_flutter_app/widgets/custom_button.dart';
+import 'package:vocallabs_flutter_app/widgets/card_layout.dart';
 
 class SpeechPlaybackScreen extends StatefulWidget {
-  const SpeechPlaybackScreen({super.key});
+  final bool isFromHistory;
+
+  const SpeechPlaybackScreen({super.key, this.isFromHistory = false});
 
   @override
   State<SpeechPlaybackScreen> createState() => _SpeechPlaybackScreenState();
@@ -20,21 +23,25 @@ class _SpeechPlaybackScreenState extends State<SpeechPlaybackScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Review Recording')),
+      appBar: AppBar(
+        title: Text(
+          widget.isFromHistory ? 'Speech Playback' : 'Review Recording',
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
+          // Use ListView instead of Column for scrollable content
+          child: ListView(
             children: [
               const SizedBox(height: 20),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.cardBackground,
-                  borderRadius: BorderRadius.circular(16),
-                ),
+              CardLayout(
                 child: Column(
                   children: [
                     const Text(
@@ -50,134 +57,246 @@ class _SpeechPlaybackScreenState extends State<SpeechPlaybackScreen> {
                       style: AppTextStyles.body2,
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      'Duration: $_totalDuration',
-                      style: AppTextStyles.body2,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.timer,
+                          size: 16,
+                          color: AppColors.lightText,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Duration: $_totalDuration',
+                          style: AppTextStyles.body2,
+                        ),
+                        const SizedBox(width: 12),
+                        const Icon(Icons.star, size: 16, color: Colors.amber),
+                        const SizedBox(width: 4),
+                        const Text('Score: 82', style: AppTextStyles.body2),
+                      ],
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 40),
               // Waveform visualization
-              Container(
-                width: double.infinity,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: AppColors.cardBackground,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: CustomPaint(
-                  painter: WaveformPainter(
-                    progress: _sliderValue,
-                    activeColor: AppColors.primaryBlue,
-                    inactiveColor: Colors.grey.shade300,
-                  ),
+              CardLayout(
+                child: Column(
+                  children: [
+                    const SizedBox(height: 8),
+                    const Text('Audio Waveform', style: AppTextStyles.body2),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 100,
+                      child: CustomPaint(
+                        painter: WaveformPainter(
+                          progress: _sliderValue,
+                          activeColor: AppColors.primaryBlue,
+                          inactiveColor: Colors.grey.shade300,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                 ),
               ),
               const SizedBox(height: 20),
               // Playback controls
-              Column(
-                children: [
-                  Slider(
-                    value: _sliderValue,
-                    activeColor: AppColors.primaryBlue,
-                    inactiveColor: Colors.grey.shade300,
-                    onChanged: (value) {
-                      setState(() {
-                        _sliderValue = value;
-                        // Calculate current position based on slider value
-                        int totalSeconds = _parseTimeToSeconds(_totalDuration);
-                        int currentSeconds = (totalSeconds * value).round();
-                        _currentPosition = _formatTime(currentSeconds);
-                      });
-                    },
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [Text(_currentPosition), Text(_totalDuration)],
+              CardLayout(
+                child: Column(
+                  children: [
+                    Slider(
+                      value: _sliderValue,
+                      activeColor: AppColors.primaryBlue,
+                      inactiveColor: Colors.grey.shade300,
+                      onChanged: (value) {
+                        setState(() {
+                          _sliderValue = value;
+                          // Calculate current position based on slider value
+                          int totalSeconds = _parseTimeToSeconds(
+                            _totalDuration,
+                          );
+                          int currentSeconds = (totalSeconds * value).round();
+                          _currentPosition = _formatTime(currentSeconds);
+                        });
+                      },
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(_currentPosition),
+                          Text(_totalDuration),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.replay_10, size: 36),
+                          onPressed: () {
+                            // Rewind 10 seconds
+                            double newValue =
+                                _sliderValue -
+                                (10 / _parseTimeToSeconds(_totalDuration));
+                            setState(() {
+                              _sliderValue = newValue < 0 ? 0 : newValue;
+                              int currentSeconds =
+                                  (_parseTimeToSeconds(_totalDuration) *
+                                          _sliderValue)
+                                      .round();
+                              _currentPosition = _formatTime(currentSeconds);
+                            });
+                          },
+                          color: AppColors.primaryBlue,
+                        ),
+                        const SizedBox(width: 20),
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _isPlaying = !_isPlaying;
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryBlue,
+                            shape: const CircleBorder(),
+                            padding: const EdgeInsets.all(16),
+                          ),
+                          child: Icon(
+                            _isPlaying ? Icons.pause : Icons.play_arrow,
+                            size: 40,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        IconButton(
+                          icon: const Icon(Icons.forward_10, size: 36),
+                          onPressed: () {
+                            // Forward 10 seconds
+                            double newValue =
+                                _sliderValue +
+                                (10 / _parseTimeToSeconds(_totalDuration));
+                            setState(() {
+                              _sliderValue = newValue > 1 ? 1 : newValue;
+                              int currentSeconds =
+                                  (_parseTimeToSeconds(_totalDuration) *
+                                          _sliderValue)
+                                      .round();
+                              _currentPosition = _formatTime(currentSeconds);
+                            });
+                          },
+                          color: AppColors.primaryBlue,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+
+              // Fixed spacing instead of Spacer()
+              const SizedBox(height: 40),
+
+              // Buttons section with conditional rendering
+              widget.isFromHistory
+                  ? Row(
                     children: [
-                      IconButton(
-                        icon: const Icon(Icons.replay_10),
-                        iconSize: 36,
-                        onPressed: () {
-                          // Rewind 10 seconds
-                          double newValue =
-                              _sliderValue -
-                              (10 / _parseTimeToSeconds(_totalDuration));
-                          setState(() {
-                            _sliderValue = newValue < 0 ? 0 : newValue;
-                            int currentSeconds =
-                                (_parseTimeToSeconds(_totalDuration) *
-                                        _sliderValue)
-                                    .round();
-                            _currentPosition = _formatTime(currentSeconds);
-                          });
-                        },
-                      ),
-                      const SizedBox(width: 20),
-                      ElevatedButton(
-                        onPressed: () {
-                          setState(() {
-                            _isPlaying = !_isPlaying;
-                          });
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryBlue,
-                          shape: const CircleBorder(),
-                          padding: const EdgeInsets.all(16),
-                        ),
-                        child: Icon(
-                          _isPlaying ? Icons.pause : Icons.play_arrow,
-                          size: 40,
+                      Expanded(
+                        child: CustomButton(
+                          text: 'View Analysis',
+                          onPressed: () {
+                            Navigator.pushNamed(context, '/feedback');
+                          },
                         ),
                       ),
-                      const SizedBox(width: 20),
-                      IconButton(
-                        icon: const Icon(Icons.forward_10),
-                        iconSize: 36,
-                        onPressed: () {
-                          // Forward 10 seconds
-                          double newValue =
-                              _sliderValue +
-                              (10 / _parseTimeToSeconds(_totalDuration));
-                          setState(() {
-                            _sliderValue = newValue > 1 ? 1 : newValue;
-                            int currentSeconds =
-                                (_parseTimeToSeconds(_totalDuration) *
-                                        _sliderValue)
-                                    .round();
-                            _currentPosition = _formatTime(currentSeconds);
-                          });
-                        },
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: CustomButton(
+                          text: 'Share',
+                          isOutlined: true,
+                          onPressed: () {
+                            // Implement share functionality
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Sharing speech recording...'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  )
+                  : Row(
+                    children: [
+                      Expanded(
+                        child: CustomButton(
+                          text: 'Save and Analyze',
+                          onPressed: () {
+                            // Navigate to analysis results
+                            Navigator.pushReplacementNamed(
+                              context,
+                              '/feedback',
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: CustomButton(
+                          text: 'Discard',
+                          isOutlined: true,
+                          backgroundColor: Colors.red,
+                          onPressed: () {
+                            _showDiscardDialog();
+                          },
+                        ),
                       ),
                     ],
                   ),
-                ],
-              ),
-              const Spacer(),
-              CustomButton(
-                text: 'Save and Analyze',
-                onPressed: () {
-                  // Navigate to analysis results
-                  Navigator.pushReplacementNamed(context, '/feedback');
-                },
-              ),
-              const SizedBox(height: 12),
-              CustomButton(
-                text: 'Discard and Re-record',
-                isOutlined: true,
-                onPressed: () {
-                  _showDiscardDialog();
-                },
-              ),
-              const SizedBox(height: 20),
+
+              // Transcript preview with sufficient bottom padding
+              if (widget.isFromHistory) ...[
+                const SizedBox(height: 20),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Transcript Preview',
+                    style: AppTextStyles.heading2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                CardLayout(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Thank you for the opportunity to speak today. I wanted to discuss the importance of effective communication in our daily lives...',
+                        style: AppTextStyles.body2.copyWith(height: 1.5),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () {
+                            // View full transcript
+                          },
+                          child: const Text('View Full Transcript →'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Extra bottom padding to prevent overflow
+                const SizedBox(height: 20),
+              ],
             ],
           ),
         ),
