@@ -19,6 +19,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  file_picker: ^5.0.0
+  audioplayers: ^5.2.1
+  universal_html: ^2.0.7
   
   # Core dependencies
   cupertino_icons: ^1.0.8
@@ -36,7 +39,6 @@ dependencies:
   
   # Audio related
   record: ^5.0.4
-  audioplayers: ^5.2.1
   
   # Charts and visualization
   syncfusion_flutter_charts: ^24.1.46
