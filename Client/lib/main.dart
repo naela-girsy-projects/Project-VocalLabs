@@ -26,6 +26,7 @@ import 'package:vocallabs_flutter_app/screens/account_settings_screen.dart';
 import 'package:vocallabs_flutter_app/screens/payment_gateway_screen.dart';
 import 'package:vocallabs_flutter_app/screens/upload_confirmation_screen.dart';
 import 'package:vocallabs_flutter_app/screens/startup_screen.dart';
+import 'package:vocallabs_flutter_app/screens/advanced_analysis.dart'; // Add this import
 
 void main() {
   runApp(const MyApp());
@@ -118,6 +119,7 @@ class MyApp extends StatelessWidget {
         '/payment': (context) => const PaymentGatewayScreen(),
         '/upload_confirmation': (context) => const UploadConfirmationScreen(),
         '/startup': (context) => const StartupScreen(),
+        '/advanced_analysis': (context) => const AdvancedAnalysisScreen(), // Add this route
       },
     );
   }
