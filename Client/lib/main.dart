@@ -82,6 +82,17 @@ class MyApp extends StatelessWidget {
         ),
       ),
       initialRoute: '/splash',
+      onGenerateRoute: (settings) {
+        if (settings.name == '/feedback') {
+          final args = settings.arguments as Map<String, dynamic>?;
+          return MaterialPageRoute(
+            builder: (context) => FeedbackScreen(
+              transcription: args?['transcription'] ?? '',
+            ),
+          );
+        }
+        return null;
+      },
       routes: {
         '/splash': (context) => const SplashScreen(),
         '/welcome': (context) => const WelcomeScreen(),
@@ -91,7 +102,6 @@ class MyApp extends StatelessWidget {
         '/analysis': (context) => const AudioRecordingScreen(),
         '/playback': (context) => const SpeechPlaybackScreen(),
         '/playback_history': (context) => const SpeechPlaybackScreen(isFromHistory: true),
-        '/feedback': (context) => const FeedbackScreen(),
         '/profile': (context) => const ProfileScreen(),
         '/history': (context) => const SpeechHistoryScreen(),
         '/progress': (context) => const ProgressDashboardScreen(),
