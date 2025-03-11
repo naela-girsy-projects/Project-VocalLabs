@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:vocallabs_flutter_app/utils/constants.dart';
 import 'package:vocallabs_flutter_app/widgets/custom_button.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,12 +16,62 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  void _login() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields')),
+      );
+      return;
+    }
+
+    // Prepare data for submission
+    final loginData = {'email': email, 'password': password};
+
+    // Show loading indicator
+    setState(() {
+      _isLoading = true;
+    });
+
+    // Make a request to the backend
+    final response = await http.post(
+      Uri.parse('http://localhost:8000/login/'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(loginData),
+    );
+
+    // Hide loading indicator
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
+      final userName = responseData['name'];
+      // Navigate to the next screen or show success message
+      Navigator.pushReplacementNamed(
+        context,
+        '/home',
+        arguments: {'name': userName},
+      );
+    } else {
+      // Show error message
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Invalid credentials')));
+    }
   }
 
   @override
@@ -110,12 +162,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                CustomButton(
-                  text: 'Login',
-                  onPressed: () {
-                    Navigator.pushReplacementNamed(context, '/home');
-                  },
-                ),
+                CustomButton(text: 'Login', onPressed: _login),
                 const SizedBox(height: 20),
                 Row(
                   children: [
