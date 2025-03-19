@@ -45,32 +45,44 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
 
-    // Make a request to the backend
-    final response = await http.post(
-      Uri.parse('http://localhost:8000/login/'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(loginData),
-    );
-
-    // Hide loading indicator
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (response.statusCode == 200) {
-      final responseData = jsonDecode(response.body);
-      final userName = responseData['name'];
-      // Navigate to the next screen or show success message
-      Navigator.pushReplacementNamed(
-        context,
-        '/home',
-        arguments: {'name': userName},
+    try {
+      // Make a request to the backend
+      final response = await http.post(
+        Uri.parse('http://10.0.2.2:8000/login/'), // Update the URL
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(loginData),
       );
-    } else {
+
+      // Hide loading indicator
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        final userName = responseData['name'];
+        // Navigate to the next screen or show success message
+        Navigator.pushReplacementNamed(
+          context,
+          '/home',
+          arguments: {'name': userName},
+        );
+      } else {
+        // Show error message
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Invalid credentials')));
+      }
+    } catch (e) {
+      // Hide loading indicator
+      setState(() {
+        _isLoading = false;
+      });
+
       // Show error message
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Invalid credentials')));
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -162,7 +174,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                CustomButton(text: 'Login', onPressed: _login),
+                if (_isLoading)
+                  const Center(child: CircularProgressIndicator())
+                else
+                  CustomButton(text: 'Login', onPressed: _login),
                 const SizedBox(height: 20),
                 Row(
                   children: [
