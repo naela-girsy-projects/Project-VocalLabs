@@ -71,7 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
         // Show error message
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Invalid credentials')));
+        ).showSnackBar(const SnackBar(content: Text('Invalid credentials')));
       }
     } catch (e) {
       // Hide loading indicator
