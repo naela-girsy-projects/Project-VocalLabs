@@ -27,8 +27,14 @@ import 'package:vocallabs_flutter_app/screens/payment_gateway_screen.dart';
 import 'package:vocallabs_flutter_app/screens/upload_confirmation_screen.dart';
 import 'package:vocallabs_flutter_app/screens/startup_screen.dart';
 import 'package:vocallabs_flutter_app/screens/advanced_analysis.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+);
   runApp(const MyApp());
 }
 

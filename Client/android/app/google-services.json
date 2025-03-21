@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "528893558394",
+    "project_id": "vocallabs-fc7d5",
+    "storage_bucket": "vocallabs-fc7d5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:528893558394:android:0f43ce1c669baa189485c3",
+        "android_client_info": {
+          "package_name": "com.example.vocallabs_flutter_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAxHpz7LYRjUWQuPT1Fds1zWPchtDOE79c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
