@@ -19,7 +19,7 @@ class AuthService {
       await _firestore.collection('users').doc(userCredential.user!.uid).set({
         'name': name,
         'email': email,
-        'createdAt': DateTime.now(),
+        'createdAt': FieldValue.serverTimestamp(),
       });
 
       return userCredential.user;
@@ -46,5 +46,19 @@ class AuthService {
   // Logout user
   Future<void> logout() async {
     await _auth.signOut();
+  }
+
+  // Fetch user profile
+  Future<Map<String, dynamic>?> getUserProfile(String uid) async {
+    try {
+      DocumentSnapshot userDoc = await _firestore.collection('users').doc(uid).get();
+      if (userDoc.exists) {
+        return userDoc.data() as Map<String, dynamic>;
+      }
+      return null;
+    } catch (e) {
+      print('Error fetching user profile: $e');
+      return null;
+    }
   }
 }

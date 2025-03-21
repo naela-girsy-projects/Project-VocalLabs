@@ -58,13 +58,15 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
     try {
       final authService = AuthService();
-      await authService.signUp(name, email, password);
+      final user = await authService.signUp(name, email, password);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registration successful')),
-      );
+      if (user != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Registration successful')),
+        );
 
-      Navigator.pushReplacementNamed(context, '/login');
+        Navigator.pushReplacementNamed(context, '/profile');
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),

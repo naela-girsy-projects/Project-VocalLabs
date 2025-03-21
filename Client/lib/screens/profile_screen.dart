@@ -1,11 +1,48 @@
-// lib/screens/profile_screen.dart
 import 'package:flutter/material.dart';
 import 'package:vocallabs_flutter_app/utils/constants.dart';
 import 'package:vocallabs_flutter_app/widgets/card_layout.dart';
 import 'package:vocallabs_flutter_app/widgets/custom_button.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  Map<String, dynamic>? _userProfile;
+  int _speechesCount = 0;
+  double _avgScore = 0.0;
+  String _totalTime = "0h 0m";
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserProfile();
+  }
+
+  Future<void> _fetchUserProfile() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      final userProfile = await _firestore.collection('users').doc(user.uid).get();
+      final userData = userProfile.data();
+
+      setState(() {
+        _userProfile = userData;
+
+        // Check if the user has speech-related data
+        _speechesCount = userData?['speechesCount'] ?? 0;
+        _avgScore = userData?['avgScore']?.toDouble() ?? 0.0;
+        _totalTime = userData?['totalTime'] ?? "0h 0m";
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,10 +75,10 @@ class ProfileScreen extends StatelessWidget {
                     shape: BoxShape.circle,
                     border: Border.all(color: AppColors.primaryBlue, width: 3),
                   ),
-                  child: const Center(
+                  child: Center(
                     child: Text(
-                      'A',
-                      style: TextStyle(
+                      _userProfile?['name']?.substring(0, 1) ?? '',
+                      style: const TextStyle(
                         fontSize: 40,
                         fontWeight: FontWeight.bold,
                         color: AppColors.primaryBlue,
@@ -50,20 +87,20 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'Alex Johnson',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                Text(
+                  _userProfile?['name'] ?? 'Loading...',
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'alex.johnson@example.com',
+                Text(
+                  _userProfile?['email'] ?? '',
                   style: AppTextStyles.body2,
                 ),
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _buildStatItem(value: '24', label: 'Speeches'),
+                    _buildStatItem(value: '$_speechesCount', label: 'Speeches'),
                     Container(
                       height: 40,
                       width: 1,
@@ -71,7 +108,7 @@ class ProfileScreen extends StatelessWidget {
                       margin: const EdgeInsets.symmetric(horizontal: 20),
                     ),
                     _buildStatItem(
-                      value: '82',
+                      value: '${_avgScore.toStringAsFixed(1)}',
                       label: 'Avg. Score',
                       color: AppColors.primaryBlue,
                     ),
@@ -81,7 +118,7 @@ class ProfileScreen extends StatelessWidget {
                       color: Colors.grey.shade300,
                       margin: const EdgeInsets.symmetric(horizontal: 20),
                     ),
-                    _buildStatItem(value: '3h 45m', label: 'Total Time'),
+                    _buildStatItem(value: _totalTime, label: 'Total Time'),
                   ],
                 ),
                 const SizedBox(height: 30),
@@ -95,7 +132,7 @@ class ProfileScreen extends StatelessWidget {
                           Navigator.pushNamed(
                             context,
                             '/account',
-                          ); // Update this line
+                          );
                         },
                       ),
                       const Divider(),
