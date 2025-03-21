@@ -4,6 +4,7 @@ import 'package:vocallabs_flutter_app/utils/constants.dart';
 import 'package:vocallabs_flutter_app/widgets/custom_button.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:vocallabs_flutter_app/services/auth.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -30,59 +31,35 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill in all fields')),
       );
       return;
     }
 
-    // Prepare data for submission
-    final loginData = {'email': email, 'password': password};
-
-    // Show loading indicator
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // Make a request to the backend
-      final response = await http.post(
-        Uri.parse('http://10.0.2.2:8000/login/'), // Update the URL
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(loginData),
-      );
+      final authService = AuthService();
+      final user = await authService.login(email, password);
 
-      // Hide loading indicator
-      setState(() {
-        _isLoading = false;
-      });
-
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-        final userName = responseData['name'];
-        // Navigate to the next screen or show success message
-        Navigator.pushReplacementNamed(
-          context,
-          '/home',
-          arguments: {'name': userName},
+      if (user != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Login successful')),
         );
-      } else {
-        // Show error message
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Invalid credentials')));
+
+        Navigator.pushReplacementNamed(context, '/home');
       }
     } catch (e) {
-      // Hide loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    } finally {
       setState(() {
         _isLoading = false;
       });
-
-      // Show error message
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 

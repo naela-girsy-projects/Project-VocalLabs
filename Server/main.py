@@ -1,18 +1,17 @@
 from fastapi import FastAPI, HTTPException, Depends, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel  # Add this import
+from pydantic import BaseModel
 import os
 from models.transcript import transcribe_audio, process_transcription
 from models.filler_word_detection import analyze_filler_words, analyze_mid_sentence_pauses
 from models.proficiency_evaluation import calculate_proficiency_score
 from models.voice_modulation import analyze_voice_modulation
-from models.speech_development import evaluate_speech_development  # Add this line
-from models.user import User, SessionLocal, engine
-from sqlalchemy.orm import Session
+from models.speech_development import evaluate_speech_development
 from passlib.context import CryptContext
 import whisper
 import logging
-from nltk_download import download_nltk_resources  # Import the utility function
+from nltk_download import download_nltk_resources
+from firebase_config import db
 
 app = FastAPI()
 
@@ -40,14 +39,6 @@ model = whisper.load_model("medium")
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Dependency to get DB session
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
 # Pydantic models
 class UserCreate(BaseModel):
     name: str
@@ -60,24 +51,31 @@ class UserLogin(BaseModel):
 
 # Create user endpoint
 @app.post("/register/")
-async def register_user(user: UserCreate, db: Session = Depends(get_db)):
-    db_user = db.query(User).filter(User.email == user.email).first()
-    if db_user:
+async def register_user(user: UserCreate):
+    users_ref = db.collection("users")
+    existing_user = users_ref.where("email", "==", user.email).get()
+    if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
-    hashed_password = pwd_context.hash(user.password)
-    db_user = User(name=user.name, email=user.email, hashed_password=hashed_password)
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
+
+    new_user = {
+        "name": user.name,
+        "email": user.email,
+        "createdAt": firestore.SERVER_TIMESTAMP,
+    }
+    users_ref.add(new_user)
+
+    return {"message": "User registered successfully"}
 
 # Login user endpoint
 @app.post("/login/")
-async def login_user(user: UserLogin, db: Session = Depends(get_db)):
-    db_user = db.query(User).filter(User.email == user.email).first()
-    if not db_user or not pwd_context.verify(user.password, db_user.hashed_password):
+async def login_user(user: UserLogin):
+    users_ref = db.collection("users")
+    user_docs = users_ref.where("email", "==", user.email).get()
+    if not user_docs:
         raise HTTPException(status_code=400, detail="Invalid credentials")
-    return {"message": "Login successful", "name": db_user.name}
+
+    user_data = user_docs[0].to_dict()
+    return {"message": "Login successful", "name": user_data["name"]}
 
 def generate_timing_feedback(actual_duration_str, expected_duration, speech_type):
     """Generate feedback about timing compliance based on actual vs expected duration"""
@@ -246,7 +244,7 @@ async def upload_file(file: UploadFile = File(...),
         "filler_word_analysis": filler_analysis,
         "proficiency_scores": proficiency_scores,
         "modulation_analysis": modulation_analysis,
-        "speech_development": speech_development,  # Add this line
+        "speech_development": speech_development,
         "speech_details": {
             "topic": topic,
             "speech_type": speech_type,
@@ -264,7 +262,7 @@ async def upload_file(file: UploadFile = File(...),
                 f"Practice keeping your {speech_type.lower()} within the {expected_duration} timeframe.",
                 "Focus on reducing filler words to sound more confident.",
                 "Use pauses strategically rather than mid-sentence."
-            ] + speech_development.get("structure", {}).get("feedback", [])  # Add structure feedback
+            ] + speech_development.get("structure", {}).get("feedback", [])
         }
     }
 
