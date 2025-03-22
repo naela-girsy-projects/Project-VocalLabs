@@ -12,6 +12,9 @@ import whisper
 import logging
 from nltk_download import download_nltk_resources
 from firebase_config import db
+from firebase_admin import firestore
+import json
+from fastapi.encoders import jsonable_encoder
 
 app = FastAPI()
 
@@ -144,7 +147,14 @@ async def upload_file(file: UploadFile = File(...),
                       topic: str = Form(None), 
                       speech_type: str = Form(None), 
                       expected_duration: str = Form(None), 
-                      actual_duration: str = Form(None)):
+                      actual_duration: str = Form(None), 
+                      user_id: str = Form(...)):
+    logging.info(f"Received file: {file.filename}")
+    logging.info(f"Topic: {topic}, Speech Type: {speech_type}, Expected Duration: {expected_duration}, Actual Duration: {actual_duration}, User ID: {user_id}")
+    
+    if not topic or not speech_type or not expected_duration or not actual_duration or not user_id:
+        raise HTTPException(status_code=422, detail="Missing required fields")
+    
     file_location = os.path.join(UPLOAD_DIR, file.filename)
     with open(file_location, "wb") as f:
         f.write(await file.read())
@@ -236,7 +246,33 @@ async def upload_file(file: UploadFile = File(...),
     else:
         speech_type_feedback = "Focus on clarity, structure, and engaging delivery in your speech."
 
-    return {
+    # Save speech data in Firestore
+    try:
+        speech_data = {
+            "topic": topic,
+            "speech_type": speech_type,
+            "expected_duration": expected_duration,
+            "actual_duration": actual_duration,
+            "transcription": transcription,
+            "proficiency_scores": jsonable_encoder(proficiency_scores),
+            "modulation_analysis": jsonable_encoder(modulation_analysis),
+            "speech_development": jsonable_encoder(speech_development),
+            "recorded_at": str(firestore.SERVER_TIMESTAMP),  # Convert to string
+        }
+
+        # Save under the user's document in Firestore
+        user_ref = db.collection("users").document(user_id)
+        speeches_ref = user_ref.collection("speeches")
+        speeches_ref.add(speech_data)
+
+        logging.info(f"Speech data saved for user: {user_id}")
+    except Exception as e:
+        logging.error(f"Error saving speech data: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save speech data")
+
+    response = {
+        "message": "Speech uploaded and analyzed successfully",
+        "speech_data": speech_data,
         "filename": file.filename,
         "transcription": transcription,
         "pause_duration": pause_duration,
@@ -265,6 +301,22 @@ async def upload_file(file: UploadFile = File(...),
             ] + speech_development.get("structure", {}).get("feedback", [])
         }
     }
+
+    # Log each field to identify the problematic one
+    for key, value in response.items():
+        try:
+            json.dumps({key: value})  # Attempt to serialize each field
+        except Exception as e:
+            logging.error(f"Serialization error in field '{key}': {e}")
+
+    # Attempt to serialize the entire response
+    try:
+        json.dumps(response)
+    except Exception as e:
+        logging.error(f"Serialization error: {e}")
+        raise HTTPException(status_code=500, detail="Response serialization failed")
+
+    return response
 
 if __name__ == "__main__":
     import uvicorn

@@ -12,6 +12,7 @@ import 'package:vocallabs_flutter_app/screens/loading_screen.dart';
 import 'package:vocallabs_flutter_app/models/speech_model.dart';
 import 'package:vocallabs_flutter_app/services/speech_storage_service.dart';
 import 'package:vocallabs_flutter_app/services/audio_analysis_service.dart'; // Import the service
+import 'package:firebase_auth/firebase_auth.dart';
 
 class SpeechPlaybackScreen extends StatefulWidget {
   final bool isFromHistory;
@@ -178,6 +179,11 @@ class _SpeechPlaybackScreenState extends State<SpeechPlaybackScreen> {
     });
 
     try {
+      final user = FirebaseAuth.instance.currentUser; // Get the logged-in user
+      if (user == null) {
+        throw Exception("User not logged in");
+      }
+
       // Use the service to analyze the audio
       final response = await AudioAnalysisService.analyzeAudio(
         audioData: _fileBytes!,
@@ -186,6 +192,7 @@ class _SpeechPlaybackScreenState extends State<SpeechPlaybackScreen> {
         speechType: _speechType,
         expectedDuration: _expectedDuration,
         actualDuration: _totalDuration,
+        userId: user.uid, // Pass the user ID to the backend
       );
 
       setState(() {

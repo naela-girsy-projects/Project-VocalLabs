@@ -27,21 +27,53 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _fetchUserProfile();
   }
 
-  Future<void> _fetchUserProfile() async {
+  void _fetchUserProfile() {
     final user = _auth.currentUser;
     if (user != null) {
-      final userProfile = await _firestore.collection('users').doc(user.uid).get();
-      final userData = userProfile.data();
+      _firestore.collection('users').doc(user.uid).snapshots().listen((snapshot) {
+        final userData = snapshot.data();
 
-      setState(() {
-        _userProfile = userData;
+        // Fetch speech data from Firestore
+        _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('speeches')
+            .snapshots()
+            .listen((querySnapshot) {
+          final speeches = querySnapshot.docs.map((doc) {
+            final data = doc.data();
+            return {
+              'score': data['proficiency_scores']?['final_score'] ?? 0,
+              'duration': double.tryParse(data['actual_duration'] ?? '0') ?? 0,
+            };
+          }).toList();
 
-        // Check if the user has speech-related data
-        _speechesCount = userData?['speechesCount'] ?? 0;
-        _avgScore = userData?['avgScore']?.toDouble() ?? 0.0;
-        _totalTime = userData?['totalTime'] ?? "0h 0m";
+          // Calculate total speeches, average score, and total time
+          final totalSpeeches = speeches.length;
+          final avgScore = speeches.isNotEmpty
+              ? speeches.map((s) => s['score'] as double).reduce((a, b) => a + b) /
+                  totalSpeeches
+              : 0.0;
+          final totalTime = speeches.isNotEmpty
+              ? speeches.map((s) => s['duration'] as double).reduce((a, b) => a + b)
+              : 0.0;
+
+          setState(() {
+            _userProfile = userData;
+            _speechesCount = totalSpeeches;
+            _avgScore = avgScore;
+            _totalTime = _formatDuration(totalTime);
+          });
+        });
       });
     }
+  }
+
+  // Helper method to format total time as "Xh Ym"
+  String _formatDuration(double totalMinutes) {
+    final hours = totalMinutes ~/ 60;
+    final minutes = totalMinutes % 60;
+    return '${hours}h ${minutes.toInt()}m';
   }
 
   @override

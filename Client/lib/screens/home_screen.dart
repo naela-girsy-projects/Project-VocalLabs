@@ -6,6 +6,7 @@ import 'package:vocallabs_flutter_app/screens/profile_screen.dart';
 import 'package:vocallabs_flutter_app/screens/speech_history_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:vocallabs_flutter_app/services/speech_storage_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,7 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchUserName(); // Fetch the user's name when the screen is initialized
+    _fetchUserName();
   }
 
   Future<void> _fetchUserName() async {
@@ -197,7 +198,7 @@ class _HomeScreenState extends State<HomeScreen> {
         promptForSpeechTopic: _promptForSpeechTopic, // Pass the method here
       ),
       const SpeechHistoryScreen(),
-      const ProfileScreen(),
+      const ProfileScreen(), // ProfileScreen now handles progress data
     ];
 
     return Scaffold(
