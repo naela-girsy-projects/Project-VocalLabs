@@ -46,11 +46,23 @@ class _LoginScreenState extends State<LoginScreen> {
       final user = await authService.login(email, password);
 
       if (user != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Login successful')),
-        );
+        // Fetch user profile from Firestore
+        final userProfile = await authService.getUserProfile(user.uid);
 
-        Navigator.pushReplacementNamed(context, '/home');
+        if (userProfile != null) {
+          final userName = userProfile['name'] ?? 'User';
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Login successful')),
+          );
+
+          // Pass the user's name to the HomeScreen
+          Navigator.pushReplacementNamed(
+            context,
+            '/home',
+            arguments: {'name': userName},
+          );
+        }
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(

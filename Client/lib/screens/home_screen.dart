@@ -4,6 +4,8 @@ import 'package:vocallabs_flutter_app/widgets/custom_button.dart';
 import 'package:vocallabs_flutter_app/widgets/card_layout.dart';
 import 'package:vocallabs_flutter_app/screens/profile_screen.dart';
 import 'package:vocallabs_flutter_app/screens/speech_history_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,6 +16,33 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  String _userName = 'User'; // Default to 'User'
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserName(); // Fetch the user's name when the screen is initialized
+  }
+
+  Future<void> _fetchUserName() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        if (userDoc.exists) {
+          setState(() {
+            _userName = userDoc.data()?['name'] ?? 'User';
+          });
+        }
+      }
+    } catch (e) {
+      print('Error fetching user name: $e');
+    }
+  }
 
   // Add method to prompt for speech topic
   Future<Map<String, String>?> _promptForSpeechTopic() async {
@@ -162,13 +191,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final args =
-        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ??
-        {};
-    final userName = args['name'] ?? 'User';
-
     final List<Widget> screens = [
-      _DashboardTab(userName: userName),
+      _DashboardTab(
+        userName: _userName, // Use the fetched userName
+        promptForSpeechTopic: _promptForSpeechTopic, // Pass the method here
+      ),
       const SpeechHistoryScreen(),
       const ProfileScreen(),
     ];
@@ -222,153 +249,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _DashboardTab extends StatelessWidget {
   final String userName;
+  final Future<Map<String, String>?> Function() promptForSpeechTopic;
 
-  const _DashboardTab({required this.userName});
-
-  // Add method to prompt for speech topic
-  Future<Map<String, String>?> _promptForSpeechTopic(BuildContext context) async {
-    final TextEditingController topicController = TextEditingController();
-    final GlobalKey<FormState> formKey = GlobalKey<FormState>();
-    
-    // Speech type and duration options
-    final List<Map<String, String>> speechTypes = [
-      {'type': 'Ice Breaker Speech', 'duration': '4–6 minutes'},
-      {'type': 'Prepared Speech', 'duration': '5–7 minutes'},
-      {'type': 'Evaluation Speech', 'duration': '2–3 minutes'},
-      {'type': 'Table Topics', 'duration': '1–2 minutes'},
-    ];
-    
-    // Default to Prepared Speech (index 1)
-    String selectedSpeechType = speechTypes[1]['type']!;
-    String selectedDuration = speechTypes[1]['duration']!;
-    bool isValidSelection = true; // Added validation state
-
-    return showDialog<Map<String, String>>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Speech Details'),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextFormField(
-                  controller: topicController,
-                  decoration: const InputDecoration(
-                    labelText: 'Speech Topic *', // Added asterisk to indicate required
-                    hintText: 'E.g., Introduction to Machine Learning',
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter a topic for your speech';
-                    }
-                    return null;
-                  },
-                  maxLength: 100,
-                  autofocus: true,
-                  textCapitalization: TextCapitalization.sentences,
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    const Text(
-                      'Speech Type: *', // Added asterisk to indicate required
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.darkText,
-                      ),
-                    ),
-                    const Spacer(),
-                    if (!isValidSelection)
-                      const Text(
-                        'Required',
-                        style: TextStyle(
-                          color: Colors.red,
-                          fontSize: 12,
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: isValidSelection ? Colors.grey.shade300 : Colors.red,
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      isExpanded: true,
-                      value: selectedSpeechType,
-                      items: speechTypes.map((item) {
-                        return DropdownMenuItem<String>(
-                          value: item['type'],
-                          child: Text(
-                            '${item['type']} (${item['duration']})',
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() {
-                            selectedSpeechType = value;
-                            selectedDuration = speechTypes
-                                .firstWhere((item) => item['type'] == value)['duration']!;
-                            isValidSelection = true; // Reset error state when selection changes
-                          });
-                        }
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  '* Required fields',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.lightText,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                // Validate both form and selection
-                if (formKey.currentState!.validate()) {
-                  if (selectedSpeechType.isEmpty) {
-                    setState(() {
-                      isValidSelection = false;
-                    });
-                  } else {
-                    Navigator.pop(context, {
-                      'topic': topicController.text.trim(),
-                      'speechType': selectedSpeechType,
-                      'duration': selectedDuration,
-                    });
-                  }
-                }
-              },
-              child: const Text('Continue'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  const _DashboardTab({
+    required this.userName,
+    required this.promptForSpeechTopic,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -436,13 +322,13 @@ class _DashboardTab extends StatelessWidget {
                       textColor: AppColors.primaryBlue,
                       icon: Icons.mic,
                       onPressed: () async {
-                        // First prompt for topic and duration
-                        final result = await _promptForSpeechTopic(context);
-                        
+                        // Call the passed callback
+                        final result = await promptForSpeechTopic();
+
                         // Only navigate if results are provided
                         if (result != null) {
                           Navigator.pushNamed(
-                            context, 
+                            context,
                             '/analysis',
                             arguments: result,
                           );
@@ -456,13 +342,13 @@ class _DashboardTab extends StatelessWidget {
                       textColor: AppColors.primaryBlue,
                       icon: Icons.upload,
                       onPressed: () async {
-                        // First prompt for topic and duration
-                        final result = await _promptForSpeechTopic(context);
-                        
+                        // Call the passed callback
+                        final result = await promptForSpeechTopic();
+
                         // Only navigate if results are provided
                         if (result != null) {
                           Navigator.pushNamed(
-                            context, 
+                            context,
                             '/upload_confirmation',
                             arguments: result,
                           );

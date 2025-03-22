@@ -65,7 +65,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           const SnackBar(content: Text('Registration successful')),
         );
 
-        Navigator.pushReplacementNamed(context, '/profile');
+        // Navigate to the login page instead of the profile page
+        Navigator.pushReplacementNamed(context, '/login');
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
