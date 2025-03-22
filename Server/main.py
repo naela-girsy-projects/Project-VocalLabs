@@ -15,6 +15,7 @@ from firebase_config import db
 from firebase_admin import firestore
 import json
 from fastapi.encoders import jsonable_encoder
+from firebase_admin import storage
 
 app = FastAPI()
 
@@ -159,7 +160,19 @@ async def upload_file(file: UploadFile = File(...),
     with open(file_location, "wb") as f:
         f.write(await file.read())
     logging.info(f"Received file: {file.filename}")
-    logging.info(f"Speech details - Topic: {topic}, Type: {speech_type}, Expected duration: {expected_duration}, Actual duration: {actual_duration}")
+
+    # Upload the file to Firebase Storage
+    try:
+        bucket = storage.bucket()  # Get the default Firebase Storage bucket
+        blob = bucket.blob(f"audio/{user_id}/{file.filename}")  # Create a unique path for the file
+        file.file.seek(0)  # Reset the file stream to the beginning
+        blob.upload_from_file(file.file)  # Upload the file directly from the request
+        blob.make_public()  # Make the file publicly accessible
+        audio_url = blob.public_url  # Get the public URL of the file
+        logging.info(f"File uploaded to Firebase Storage: {audio_url}")
+    except Exception as e:
+        logging.error(f"Error uploading file to Firebase Storage: {e}")
+        raise HTTPException(status_code=500, detail="Failed to upload file to Firebase Storage")
 
     # Transcribe the audio file
     result = transcribe_audio(model, file_location)
@@ -255,7 +268,7 @@ async def upload_file(file: UploadFile = File(...),
             "voice_analysis_score": modulation_analysis["scores"].get("total_score", 0),
             "proficiency_score": proficiency_scores.get("final_score", 0),
             "transcription": transcription,
-            "audio_file_path": file_location,
+            "audio_file_path": audio_url,
             "topic": topic,
             "speech_type": speech_type,
             "expected_duration": expected_duration,
