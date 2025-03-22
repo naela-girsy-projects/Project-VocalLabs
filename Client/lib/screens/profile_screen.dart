@@ -61,7 +61,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _userProfile = userData;
       });
 
-      // Fetch speeches data
+      // Fetch speeches data in real-time
       _firestore
           .collection('users')
           .doc(user.uid)
@@ -79,11 +79,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           return;
         }
 
+        // Map speeches data
         final speeches = querySnapshot.docs.map((doc) {
           final data = doc.data();
+          print('Processing speech data: $data');
+
+          // Parse expected_duration (e.g., "1–2 minutes")
+          final duration = _parseExpectedDuration(data['expected_duration']);
+
           return {
-            'score': data['proficiency_scores']?['final_score'] ?? 0,
-            'duration': _parseDuration(data['actual_duration']),
+            'score': data['proficiency_score'] ?? 0, // Match the actual field name
+            'duration': duration,
           };
         }).toList();
 
@@ -92,6 +98,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final avgScore = speeches.map((s) => s['score'] as double).reduce((a, b) => a + b) / totalSpeeches;
         final totalTime = speeches.map((s) => s['duration'] as double).reduce((a, b) => a + b);
 
+        // Log calculated values
+        print('Total speeches: $totalSpeeches');
+        print('Average score: $avgScore');
+        print('Total time: $totalTime');
+
+        // Update state with real-time data
         setState(() {
           _speechesCount = totalSpeeches;
           _avgScore = avgScore;
@@ -102,10 +114,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // Helper method to format total time as "Xh Ym"
-  String _formatDuration(double totalMinutes) {
-    final hours = totalMinutes ~/ 60;
-    final minutes = totalMinutes % 60;
-    return '${hours}h ${minutes.toInt()}m';
+  String _formatDuration(double totalSeconds) {
+    final hours = totalSeconds ~/ 3600;
+    final minutes = (totalSeconds % 3600) ~/ 60;
+    return '${hours}h ${minutes}m';
   }
 
   double _parseDuration(String? duration) {
@@ -119,6 +131,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
       print('Error parsing duration: $e');
       return 0.0; // Return 0 if parsing fails
     }
+  }
+
+  double _parseExpectedDuration(String? duration) {
+    if (duration == null || duration.isEmpty) return 0.0;
+    try {
+      // Split the range (e.g., "1–2 minutes")
+      final parts = duration.split('–');
+      if (parts.length == 2) {
+        // Take the average of the range
+        final minMinutes = double.parse(parts[0].trim());
+        final maxMinutes = double.parse(parts[1].replaceAll(' minutes', '').trim());
+        return ((minMinutes + maxMinutes) / 2) * 60; // Convert to seconds
+      } else if (duration.contains('minute')) {
+        // Handle single value (e.g., "1 minute")
+        final minutes = double.parse(duration.replaceAll(' minutes', '').replaceAll(' minute', '').trim());
+        return minutes * 60; // Convert to seconds
+      }
+    } catch (e) {
+      print('Error parsing expected duration: $e');
+    }
+    return 0.0; // Return 0 if parsing fails
   }
 
   @override
