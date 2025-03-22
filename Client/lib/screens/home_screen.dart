@@ -18,11 +18,23 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   String _userName = 'User'; // Default to 'User'
+  Map<String, double> _progressScores = {
+    'speechDevelopment': 0.0,
+    'proficiency': 0.0,
+    'voiceAnalysis': 0.0,
+    'effectiveness': 0.0,
+    'vocabulary': 0.0,
+  };
 
   @override
   void initState() {
     super.initState();
     _fetchUserName();
+    _fetchUserProgress().then((scores) {
+      setState(() {
+        _progressScores = scores;
+      });
+    });
   }
 
   Future<void> _fetchUserName() async {
@@ -190,12 +202,66 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<Map<String, double>> _fetchUserProgress() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final speechesSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('speeches')
+            .get();
+
+        if (speechesSnapshot.docs.isNotEmpty) {
+          // Initialize accumulators for each feature
+          double totalSpeechDevelopment = 0.0;
+          double totalProficiency = 0.0;
+          double totalVoiceAnalysis = 0.0;
+          double totalEffectiveness = 0.0;
+          double totalVocabulary = 0.0;
+
+          // Iterate through each speech and sum up the scores
+          for (var doc in speechesSnapshot.docs) {
+            final data = doc.data();
+            totalSpeechDevelopment += data['speech_development_score'] ?? 0.0;
+            totalProficiency += data['proficiency_score'] ?? 0.0;
+            totalVoiceAnalysis += data['voice_analysis_score'] ?? 0.0;
+            totalEffectiveness += data['effectiveness_score'] ?? 0.0;
+            totalVocabulary += data['vocabulary_evaluation_score'] ?? 0.0;
+          }
+
+          // Calculate averages
+          int speechCount = speechesSnapshot.docs.length;
+          return {
+            'speechDevelopment': totalSpeechDevelopment / speechCount,
+            'proficiency': totalProficiency / speechCount,
+            'voiceAnalysis': totalVoiceAnalysis / speechCount,
+            'effectiveness': totalEffectiveness / speechCount,
+            'vocabulary': totalVocabulary / speechCount,
+          };
+        }
+      }
+    } catch (e) {
+      print('Error fetching user progress: $e');
+    }
+
+    // Return default values if no speeches or error occurs
+    return {
+      'speechDevelopment': 0.0,
+      'proficiency': 0.0,
+      'voiceAnalysis': 0.0,
+      'effectiveness': 0.0,
+      'vocabulary': 0.0,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final List<Widget> screens = [
       _DashboardTab(
         userName: _userName, // Use the fetched userName
         promptForSpeechTopic: _promptForSpeechTopic, // Pass the method here
+        progressScores: _progressScores, // Pass the progress scores here
       ),
       const SpeechHistoryScreen(),
       const ProfileScreen(), // ProfileScreen now handles progress data
@@ -251,10 +317,12 @@ class _HomeScreenState extends State<HomeScreen> {
 class _DashboardTab extends StatelessWidget {
   final String userName;
   final Future<Map<String, String>?> Function() promptForSpeechTopic;
+  final Map<String, double> progressScores;
 
   const _DashboardTab({
     required this.userName,
     required this.promptForSpeechTopic,
+    required this.progressScores,
   });
 
   @override
@@ -367,31 +435,31 @@ class _DashboardTab extends StatelessWidget {
                   children: [
                     _buildProgressItem(
                       label: 'Speech Development',
-                      progress: 0.75,
+                      progress: (progressScores['speechDevelopment'] ?? 0.0) / 100,
                       color: AppColors.primaryBlue,
                     ),
                     const SizedBox(height: 16),
                     _buildProgressItem(
                       label: 'Proficiency',
-                      progress: 0.60,
+                      progress: (progressScores['proficiency'] ?? 0.0) / 100,
                       color: AppColors.warning,
                     ),
                     const SizedBox(height: 16),
                     _buildProgressItem(
                       label: 'Voice Analysis',
-                      progress: 0.85,
+                      progress: (progressScores['voiceAnalysis'] ?? 0.0) / 100,
                       color: AppColors.success,
                     ),
                     const SizedBox(height: 16),
                     _buildProgressItem(
                       label: 'Speech Effectiveness',
-                      progress: 0.56,
+                      progress: (progressScores['effectiveness'] ?? 0.0) / 100,
                       color: const Color.fromARGB(255, 149, 90, 148),
                     ),
                     const SizedBox(height: 16),
                     _buildProgressItem(
                       label: 'Vocabulary Evaluation',
-                      progress: 0.71,
+                      progress: (progressScores['vocabulary'] ?? 0.0) / 100,
                       color: const Color.fromARGB(255, 81, 161, 165),
                     ),
                   ],
