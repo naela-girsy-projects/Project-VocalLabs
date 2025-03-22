@@ -188,82 +188,79 @@ def evaluate_speech_effectiveness(speech_text: str, topic: str, expected_duratio
     # 2. Achievement of Purpose (10 points)
     structure_analysis = analyze_speech_structure(speech_text)
     
-    # Purpose components with adjusted weights
+    # Enhanced purpose evaluation (10 points)
     purpose_components = {
         'structure': 0,
         'coherence': 0,
         'topic_alignment': 0,
-        'timing_alignment': 0  # New component
+        'conclusion_strength': 0
     }
-    
-    # Structure score (4 points - increased from 3)
-    if structure_analysis['has_intro']:
-        purpose_components['structure'] += 1.0  # Increased from 0.75
-    if structure_analysis['has_body']:
-        purpose_components['structure'] += 2.0  # Increased from 1.5
-    if structure_analysis['has_conclusion']:
-        purpose_components['structure'] += 1.0  # Increased from 0.75
-    
-    # Coherence score (2 points - decreased from 2.5)
-    discourse_marker_score = _check_discourse_markers(speech_text)
-    purpose_components['coherence'] = discourse_marker_score * 2.0
-    
-    # Topic alignment score (3 points - increased from 2.5)
-    # Enhanced alignment calculation using both semantic and keyword metrics
-    topic_alignment = (
-        (semantic_similarity * 0.6) +  # Weighted more towards semantic similarity
-        (keyword_overlap * 0.4)        # Less weight on keyword overlap
-    ) * 3.0  # Scale to 3 points
-    purpose_components['topic_alignment'] = topic_alignment
-    
-    # Timing alignment score (1 point - decreased from 2)
-    try:
-        expected_duration = expected_duration.lower().replace('–', '-')
-        if '-' in expected_duration:
-            parts = expected_duration.split('-')
-            min_minutes = float(parts[0].strip())
-            max_minutes = float(parts[1].split()[0].strip())
-            target_minutes = (min_minutes + max_minutes) / 2
-        else:
-            target_minutes = float(expected_duration.split()[0])
-        
-        # Convert target to seconds and calculate deviation
-        target_seconds = target_minutes * 60
-        if actual_duration_seconds > 0:
-            deviation = abs(actual_duration_seconds - target_seconds) / target_seconds
-            timing_score = max(0, min(1, 1 * (1 - deviation)))  # Scale to 1 point
-        else:
-            timing_score = 0.5  # Default score if duration not provided
-        
-        purpose_components['timing_alignment'] = timing_score
-    except (ValueError, IndexError):
-        purpose_components['timing_alignment'] = 0.5
 
-    # Apply bonus points for exceptional cases (up to 1 additional point)
-    bonus_score = 0
-    if (semantic_similarity > 0.8 and 
-        keyword_overlap > 0.7 and 
-        structure_analysis['has_intro'] and 
-        structure_analysis['has_conclusion'] and 
-        discourse_marker_score > 0.8):
-        bonus_score = min(1, (semantic_similarity + keyword_overlap - 1.5) * 2)
+    # Structure analysis (4 points)
+    if structure_analysis['has_intro']:
+        intro_sentences = speech_text.split('.')[:2]
+        purpose_components['structure'] += (
+            2.0 if any(s.lower().strip().startswith(('what', 'why', 'how', 'learning', 'think')) 
+            for s in intro_sentences) else 1.5  # Increased points
+        )
+
+    # Enhanced body evaluation (3 points)
+    body_sentences = speech_text.split('.')[1:-2]
+    if len(body_sentences) >= 3:
+        # Check for argument development
+        argument_markers = ['because', 'therefore', 'however', 'for example', 'consider']
+        theme_development = ['not just', 'beyond', 'understand', 'teaches us']
+        
+        argument_strength = sum(
+            any(marker in sentence.lower() for marker in argument_markers)
+            for sentence in body_sentences
+        ) / len(body_sentences)
+        
+        theme_strength = sum(
+            any(marker in sentence.lower() for marker in theme_development)
+            for sentence in body_sentences
+        ) / len(body_sentences)
+        
+        purpose_components['structure'] += min(3.0, (argument_strength + theme_strength) * 2)
+
+    # Enhanced conclusion evaluation (3 points)
+    conclusion_sentences = speech_text.split('.')[-2:]
+    conclusion_strength = 0
     
-    # Calculate final purpose score with bonus
-    purpose_score = sum(purpose_components.values()) + bonus_score
-    purpose_score = max(0, min(10, purpose_score))  # Ensure it's between 0-10
+    # Topic synthesis (1 point)
+    if any(marker in speech_text.lower() for marker in ['purpose', 'most valuable', 'prepare for life']):
+        conclusion_strength += 1
     
-    print(f"\nPurpose Score Components:")
-    for component, score in purpose_components.items():
-        print(f"{component}: {score:.2f}")
+    # Reflection quality (1 point)
+    reflection_markers = ['understand', 'learn', 'grow', 'adapt', 'think critically']
+    reflection_score = sum(marker in speech_text.lower() for marker in reflection_markers)
+    if reflection_score >= 2:
+        conclusion_strength += 1
     
-    print(f"\nFinal scores:")
-    print(f"Relevance score: {relevance_score}/10")
-    print(f"Purpose score: {purpose_score}/10")
+    # Connection to main theme (1 point)
+    if any(phrase in speech_text.lower() for phrase in [topic.lower(), 'true purpose', 'valuable skill']):
+        conclusion_strength += 1
+
+    purpose_components['conclusion_strength'] = conclusion_strength
+
+    # Calculate final purpose score
+    purpose_score = (
+        purpose_components['structure'] +               # Up to 4 points
+        conclusion_strength +                          # Up to 3 points
+        (structure_analysis['topic_consistency'] * 3)  # Up to 3 points
+    )
     
+    # Bonus for exceptional thematic development
+    if semantic_similarity > 0.7 and conclusion_strength >= 2:
+        purpose_score = min(10, purpose_score + 1)
+
+    # Calculate total score properly
+    total_score = relevance_score + purpose_score  # Direct sum of both scores
+
     return {
-        'total_score': round(relevance_score + purpose_score, 2),
-        'relevance_score': round(relevance_score, 2),
-        'purpose_score': round(purpose_score, 2),
+        'total_score': round(total_score, 1),
+        'relevance_score': round(relevance_score, 1),
+        'purpose_score': round(purpose_score, 1),
         'details': {
             'semantic_similarity': round(semantic_similarity, 3),
             'keyword_overlap': round(keyword_overlap, 3),
