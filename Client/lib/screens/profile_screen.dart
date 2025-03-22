@@ -29,44 +29,76 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _fetchUserProfile() {
     final user = _auth.currentUser;
-    if (user != null) {
-      _firestore.collection('users').doc(user.uid).snapshots().listen((snapshot) {
-        final userData = snapshot.data();
+    if (user == null) {
+      // Redirect to login if the user is not logged in
+      Navigator.pushReplacementNamed(context, '/login');
+      return;
+    }
 
-        // Fetch speech data from Firestore
-        _firestore
-            .collection('users')
-            .doc(user.uid)
-            .collection('speeches')
-            .snapshots()
-            .listen((querySnapshot) {
-          final speeches = querySnapshot.docs.map((doc) {
-            final data = doc.data();
-            return {
-              'score': data['proficiency_scores']?['final_score'] ?? 0,
-              'duration': double.tryParse(data['actual_duration'] ?? '0') ?? 0,
-            };
-          }).toList();
+    // Fetch user profile data
+    _firestore.collection('users').doc(user.uid).snapshots().listen((snapshot) {
+      if (!snapshot.exists) {
+        // Handle missing user document
+        setState(() {
+          _userProfile = {'name': 'Unknown', 'email': 'Unknown'};
+        });
+        print('User document does not exist for UID: ${user.uid}');
+        return;
+      }
 
-          // Calculate total speeches, average score, and total time
-          final totalSpeeches = speeches.length;
-          final avgScore = speeches.isNotEmpty
-              ? speeches.map((s) => s['score'] as double).reduce((a, b) => a + b) /
-                  totalSpeeches
-              : 0.0;
-          final totalTime = speeches.isNotEmpty
-              ? speeches.map((s) => s['duration'] as double).reduce((a, b) => a + b)
-              : 0.0;
+      final userData = snapshot.data();
+      if (userData == null) {
+        // Handle null data
+        setState(() {
+          _userProfile = {'name': 'Unknown', 'email': 'Unknown'};
+        });
+        print('User data is null for UID: ${user.uid}');
+        return;
+      }
 
+      // Update the user profile
+      setState(() {
+        _userProfile = userData;
+      });
+
+      // Fetch speeches data
+      _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('speeches')
+          .snapshots()
+          .listen((querySnapshot) {
+        if (querySnapshot.docs.isEmpty) {
+          // Handle empty speeches collection
           setState(() {
-            _userProfile = userData;
-            _speechesCount = totalSpeeches;
-            _avgScore = avgScore;
-            _totalTime = _formatDuration(totalTime);
+            _speechesCount = 0;
+            _avgScore = 0.0;
+            _totalTime = "0h 0m";
           });
+          print('No speeches found for user: ${user.uid}');
+          return;
+        }
+
+        final speeches = querySnapshot.docs.map((doc) {
+          final data = doc.data();
+          return {
+            'score': data['proficiency_scores']?['final_score'] ?? 0,
+            'duration': _parseDuration(data['actual_duration']),
+          };
+        }).toList();
+
+        // Calculate total speeches, average score, and total time
+        final totalSpeeches = speeches.length;
+        final avgScore = speeches.map((s) => s['score'] as double).reduce((a, b) => a + b) / totalSpeeches;
+        final totalTime = speeches.map((s) => s['duration'] as double).reduce((a, b) => a + b);
+
+        setState(() {
+          _speechesCount = totalSpeeches;
+          _avgScore = avgScore;
+          _totalTime = _formatDuration(totalTime);
         });
       });
-    }
+    });
   }
 
   // Helper method to format total time as "Xh Ym"
@@ -74,6 +106,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final hours = totalMinutes ~/ 60;
     final minutes = totalMinutes % 60;
     return '${hours}h ${minutes.toInt()}m';
+  }
+
+  double _parseDuration(String? duration) {
+    if (duration == null || duration.isEmpty) return 0.0;
+    try {
+      final parts = duration.split(':');
+      final minutes = int.parse(parts[0]);
+      final seconds = int.parse(parts[1]);
+      return (minutes * 60 + seconds).toDouble(); // Convert to seconds as double
+    } catch (e) {
+      print('Error parsing duration: $e');
+      return 0.0; // Return 0 if parsing fails
+    }
   }
 
   @override
@@ -125,7 +170,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _userProfile?['email'] ?? '',
+                  _userProfile?['email'] ?? 'No email available',
                   style: AppTextStyles.body2,
                 ),
                 const SizedBox(height: 16),

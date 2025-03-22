@@ -249,15 +249,19 @@ async def upload_file(file: UploadFile = File(...),
     # Save speech data in Firestore
     try:
         speech_data = {
+            "speech_development_score": speech_development.get("development_score", 0),
+            "vocabulary_evaluation_score": proficiency_scores.get("vocabulary_score", 0),
+            "effectiveness_score": proficiency_scores.get("effectiveness_score", 0),
+            "voice_analysis_score": modulation_analysis["scores"].get("total_score", 0),
+            "proficiency_score": proficiency_scores.get("final_score", 0),
+            "transcription": transcription,
+            "audio_file_path": file_location,
             "topic": topic,
             "speech_type": speech_type,
             "expected_duration": expected_duration,
             "actual_duration": actual_duration,
-            "transcription": transcription,
-            "proficiency_scores": jsonable_encoder(proficiency_scores),
-            "modulation_analysis": jsonable_encoder(modulation_analysis),
-            "speech_development": jsonable_encoder(speech_development),
-            "recorded_at": str(firestore.SERVER_TIMESTAMP),  # Convert to string
+            "user_id": user_id,
+            "recorded_at": str(firestore.SERVER_TIMESTAMP),  # Save timestamp as string
         }
 
         # Save under the user's document in Firestore
