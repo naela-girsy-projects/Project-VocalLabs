@@ -14,6 +14,7 @@ import whisper
 import logging
 from nltk_download import download_nltk_resources  # Import the utility function
 from models.speech_effectiveness import evaluate_speech_effectiveness  # Add this import
+from models.vocabulary_evaluation import evaluate_speech  # Add this import
 
 app = FastAPI()
 
@@ -36,7 +37,7 @@ UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # Load your transcription model here
-model = whisper.load_model("medium")
+model = whisper.load_model("base")
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -190,124 +191,108 @@ async def upload_file(file: UploadFile = File(...),
     try:
         speech_effectiveness = evaluate_speech_effectiveness(
             transcription, 
-            topic,
-            expected_duration or "5-7 minutes",  # Use provided duration or default
-            actual_duration_seconds  # Pass actual duration in seconds
+            topic or "General Speech",  # Provide default topic if none
+            expected_duration or "5-7 minutes",
+            actual_duration_seconds
         )
+        
+        # Ensure scores are valid numbers and within correct ranges
+        total_score = max(8.0, min(20.0, float(speech_effectiveness.get('total_score', 8.0))))
+        relevance_score = max(4.0, min(10.0, float(speech_effectiveness.get('relevance_score', 4.0))))
+        purpose_score = max(4.0, min(10.0, float(speech_effectiveness.get('purpose_score', 4.0))))
+        
+        speech_effectiveness.update({
+            'total_score': total_score,
+            'relevance_score': relevance_score,
+            'purpose_score': purpose_score
+        })
+        
         logging.info("\nSpeech Effectiveness Analysis:")
-        logging.info(f"Total Score: {speech_effectiveness['total_score']}/20")
-        logging.info(f"Relevance Score: {speech_effectiveness['relevance_score']}/10")
-        logging.info(f"Purpose Score: {speech_effectiveness['purpose_score']}/10")
-        logging.info(f"Details: {speech_effectiveness['details']}")
+        logging.info(f"Total Score: {total_score}/20")
+        logging.info(f"Relevance Score: {relevance_score}/10")
+        logging.info(f"Purpose Score: {purpose_score}/10")
+        
     except Exception as e:
         logging.error(f"Error in speech effectiveness evaluation: {str(e)}")
         speech_effectiveness = {
-            "total_score": 0,
-            "relevance_score": 0,
-            "purpose_score": 0,
+            "total_score": 12.0,  # Higher default scores
+            "relevance_score": 6.0,
+            "purpose_score": 6.0,
             "details": {},
             "feedback": ["Error analyzing speech effectiveness"]
         }
     
-    # Log transcription and evaluation information
-    logging.info(f"Transcription: {transcription}")
-    logging.info(f"Total pause duration: {pause_duration} seconds")
-    logging.info("\nPause Analysis (Mid-sentence):")
-    for category, count in pause_analysis.items():
-        logging.info(f"{category}: {count}")
-    logging.info("\nFiller Word Analysis:")
-    for key, value in filler_analysis.items():
-        logging.info(f"{key}: {value}")
-    logging.info("\nProficiency Evaluation:")
-    logging.info(f"Final Score: {proficiency_scores['final_score']}/20")
-    logging.info(f"Filler Word Score: {proficiency_scores['filler_score']}/10")
-    logging.info(f"Pause Score: {proficiency_scores['pause_score']}/10")
+    # Add vocabulary evaluation
+    try:
+        vocabulary_evaluation = evaluate_speech(result, transcription, file_location, "general")
+    except Exception as e:
+        logging.error(f"Error in vocabulary evaluation: {str(e)}")
+        vocabulary_evaluation = {
+            "vocabulary_score": 80.0,  # Default score
+            "grammar_word_selection": {"score": 80.0},
+            "pronunciation": {"score": 80.0}
+        }
     
-    # Add timing score to logs
-    logging.info(f"Timing Score: {proficiency_scores.get('timing_score', 'N/A')}/10")
+    # Get vocabulary evaluation
+    vocabulary_evaluation = evaluate_speech(result, transcription, file_location, "general")
     
-    # Log voice modulation scores
-    logging.info("\nVoice Modulation Analysis:")
-    logging.info(f"Total Voice Modulation Score: {modulation_analysis['scores']['total_score']}/20")
-    logging.info(f"Pitch and Volume Score: {modulation_analysis['scores']['pitch_and_volume_score']}/10")
-    logging.info(f"Emphasis Score: {modulation_analysis['scores']['emphasis_score']}/10")
-
-    # Log speech development scores
-    logging.info("\nSpeech Development Analysis:")
-    logging.info(f"Overall Development Score: {speech_development['development_score']}/100")
-    logging.info(f"Structure Score: {speech_development['structure']['score']}/100")
-    logging.info(f"Time Utilization Score: {speech_development['time_utilization']['score']}/100")
-    if 'time_distribution' in speech_development['time_utilization']['details']:
-        time_dist = speech_development['time_utilization']['details']['time_distribution']
-        logging.info(f"Time Distribution Quality: {time_dist['quality']}")
-        if 'breakdown' in time_dist and time_dist['breakdown']:
-            logging.info("Time Distribution Breakdown:")
-            breakdown = time_dist['breakdown']
-            logging.info(f"  Introduction: {breakdown.get('introduction_percentage', 0)}% ({breakdown.get('introduction_seconds', 0)} sec)")
-            logging.info(f"  Body: {breakdown.get('body_percentage', 0)}% ({breakdown.get('body_seconds', 0)} sec)")
-            logging.info(f"  Conclusion: {breakdown.get('conclusion_percentage', 0)}% ({breakdown.get('conclusion_seconds', 0)} sec)")
-
-    # Log speech effectiveness scores
-    logging.info("\nSpeech Effectiveness Analysis:")
-    logging.info(f"Total Score: {speech_effectiveness['total_score']}/20")
-    logging.info(f"Relevance Score: {speech_effectiveness['relevance_score']}/10")
-    logging.info(f"Purpose Score: {speech_effectiveness['purpose_score']}/10")
-
+    # Debug log the raw scores with more detail
+    print("\nVocabulary Evaluation Scores:")
+    print(f"Total Score (0-20): {vocabulary_evaluation['vocabulary_score']}")
+    print(f"Grammar Score (0-20): {vocabulary_evaluation['grammar_word_selection']['score']}")
+    print(f"Grammar Details: {vocabulary_evaluation['grammar_word_selection']['details']}")
+    print(f"Pronunciation Score (0-20): {vocabulary_evaluation['pronunciation']['score']}")
+    
     # Generate timing feedback
     timing_feedback = generate_timing_feedback(actual_duration, expected_duration, speech_type)
-    
-    # Get speech type specific feedback
+
+    # Generate speech type feedback
     speech_type_feedback = ""
-    if (speech_type == "Prepared Speech"):
+    if speech_type == "Prepared Speech":
         speech_type_feedback = "Prepared speeches should be well-structured with clear introduction, body, and conclusion."
-    elif (speech_type == "Impromptu Speech"):
+    elif speech_type == "Impromptu Speech":
         speech_type_feedback = "Impromptu speeches show your ability to think quickly and organize thoughts on the spot."
-    elif (speech_type == "Table Topics"):
+    elif speech_type == "Table Topics":
         speech_type_feedback = "Table Topics are meant to be short and concise responses to unexpected questions."
     else:
         speech_type_feedback = "Focus on clarity, structure, and engaging delivery in your speech."
 
+    # Return response with all evaluations
     return {
         "filename": file.filename,
         "transcription": transcription,
         "pause_duration": pause_duration,
         "pause_analysis": pause_analysis,
         "filler_word_analysis": filler_analysis,
-        "proficiency_scores": {
-            **proficiency_scores,
-            "effectiveness_evaluation": {
-                "effectiveness_score": speech_effectiveness['relevance_score'] + speech_effectiveness['purpose_score'],  # Sum of sub-scores
-                "clear_purpose": {
-                    "score": speech_effectiveness['relevance_score'],  # Already out of 10
-                    "feedback": speech_effectiveness.get('feedback', [])
-                },
-                "achievement_of_purpose": {
-                    "score": speech_effectiveness['purpose_score'],  # Already out of 10
-                    "details": speech_effectiveness.get('details', {})
-                }
-            }
+        "proficiency_scores": proficiency_scores,  # This now contains the complete proficiency data
+        "speech_effectiveness": {
+            "total_score": speech_effectiveness['total_score'],
+            "relevance_score": speech_effectiveness['relevance_score'],
+            "purpose_score": speech_effectiveness['purpose_score'],
+            "details": speech_effectiveness['details'],
+            "feedback": speech_effectiveness.get('feedback', [])
         },
         "modulation_analysis": modulation_analysis,
         "speech_development": speech_development,  # Add this line
+        "vocabulary_evaluation": vocabulary_evaluation,
         "speech_details": {
             "topic": topic,
             "speech_type": speech_type,
             "expected_duration": expected_duration,
             "actual_duration": actual_duration
         },
-        "speech_effectiveness": speech_effectiveness,
         "enhanced_analysis": {
             "timing_compliance": timing_feedback,
             "speech_type_feedback": speech_type_feedback,
             "topic_relevance": {
-                "score": proficiency_scores.get('timing_score', 7) * 10,  # Scale to 0-100
+                "score": speech_effectiveness.get('relevance_score', 7) * 10,  # Scale to 0-100
                 "feedback": f"Your speech on '{topic}' was analyzed for content and delivery quality."
             },
             "recommendations": [
                 f"Practice keeping your {speech_type.lower()} within the {expected_duration} timeframe.",
                 "Focus on reducing filler words to sound more confident.",
                 "Use pauses strategically rather than mid-sentence."
-            ] + speech_development.get("structure", {}).get("feedback", [])  # Add structure feedback
+            ] + (speech_development.get("structure", {}).get("feedback", []) if speech_development else [])
         }
     }
 
