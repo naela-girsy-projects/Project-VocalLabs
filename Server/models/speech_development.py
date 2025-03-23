@@ -295,207 +295,89 @@ def analyze_speech_structure(transcription):
         "section_transition_count": section_transition_count
     }
 
-def evaluate_time_utilization(actual_duration, expected_duration, structure_analysis=None):
+def evaluate_time_utilization(actual_duration, expected_duration):
     """
-    Evaluate how well the speech timing matches the expected duration and
-    how effectively the time is distributed across speech sections.
+    Evaluate speech timing based on simplified scoring system.
     
     Parameters:
     actual_duration (int): Actual duration in seconds
     expected_duration (str): Expected duration string (e.g., "5–7 minutes")
-    structure_analysis (dict, optional): Results from analyze_speech_structure
     
     Returns:
-    dict: Time utilization analysis
+    dict: Time utilization analysis with simplified scoring
     """
-    # Parse expected duration
     try:
-        # Handle different formats like "5-7 minutes", "5–7 minutes", "5 minutes"
-        expected_duration = expected_duration.lower().replace('–', '-')
+        # Define standard durations
+        SPEECH_DURATIONS = {
+            "Ice Breaker Speech": (4, 6),    # 4-6 minutes
+            "Prepared Speeches": (5, 7),      # 5-7 minutes
+            "Evaluation Speech": (2, 3),      # 2-3 minutes
+            "Table Topics": (1, 2)            # 1-2 minutes
+        }
+        
+        # Parse expected duration
+        expected_duration = expected_duration.replace('–', '-')  # Standardize hyphen
         if '-' in expected_duration:
-            # Range format like "5-7 minutes"
             parts = expected_duration.split('-')
             min_minutes = float(parts[0].strip())
-            max_minutes_part = parts[1].strip()
-            max_minutes = float(max_minutes_part.split(' ')[0])
-            target_minutes = (min_minutes + max_minutes) / 2  # Middle of the range is ideal
+            max_minutes = float(parts[1].split()[0].strip())  # Remove 'minutes'
         else:
-            # Single value like "5 minutes"
-            min_minutes = max_minutes = target_minutes = float(expected_duration.split(' ')[0])
+            # Default to Prepared Speech if format is incorrect
+            min_minutes, max_minutes = 5, 7
         
         # Convert to seconds
         min_seconds = min_minutes * 60
         max_seconds = max_minutes * 60
-        target_seconds = target_minutes * 60
+        actual_minutes = actual_duration / 60
         
-        # Calculate deviation from target
-        deviation = abs(actual_duration - target_seconds) / target_seconds
-        
-        # Determine compliance status
+        # Calculate deviation from acceptable range
         if actual_duration < min_seconds:
-            status = "too_short"
-            message = f"Speech was shorter than the minimum required time of {min_minutes} minutes."
-            deviation_from_range = (min_seconds - actual_duration) / min_seconds
+            deviation = min_seconds - actual_duration
         elif actual_duration > max_seconds:
-            status = "too_long"
-            message = f"Speech exceeded the maximum time of {max_minutes} minutes."
-            deviation_from_range = (actual_duration - max_seconds) / max_seconds
+            deviation = actual_duration - max_seconds
         else:
-            status = "within_range"
-            message = f"Speech duration was within the expected range of {expected_duration}."
-            deviation_from_range = 0
+            deviation = 0
         
-        # Calculate basic time utilization score (0-100) based on timing compliance
-        if status == "within_range":
-            # Within range gets 80-100 points depending on how close to target
-            compliance_score = 90 - (deviation * 50)
-            compliance_score = max(80, min(100, compliance_score))
-        else:
-            # Outside range gets 50-80 points depending on deviation
-            base_score = 80 - (deviation_from_range * 100)
-            compliance_score = max(50, min(80, base_score))
-
-        # Enhanced: Analyze time distribution across sections if structure analysis is available
-        time_distribution_score = 70  # Default distribution score
-        time_distribution_feedback = "No information available on time distribution."
-        time_breakdown = {}
-        distribution_quality = "unknown"
-        
-        if structure_analysis:
-            # Get section proportions from structure analysis
-            section_proportions = structure_analysis.get("section_proportions", {})
-            intro_proportion = section_proportions.get("introduction", 0) / 100
-            body_proportion = section_proportions.get("body", 0) / 100
-            conclusion_proportion = section_proportions.get("conclusion", 0) / 100
-            
-            # Use these proportions to estimate time spent on each section
-            intro_time = actual_duration * intro_proportion
-            body_time = actual_duration * body_proportion
-            conclusion_time = actual_duration * conclusion_proportion
-            
-            time_breakdown = {
-                "introduction_seconds": round(intro_time, 1),
-                "introduction_percentage": round(intro_proportion * 100, 1),
-                "body_seconds": round(body_time, 1),
-                "body_percentage": round(body_proportion * 100, 1),
-                "conclusion_seconds": round(conclusion_time, 1),
-                "conclusion_percentage": round(conclusion_proportion * 100, 1)
-            }
-            
-            # Evaluate if time distribution is ideal
-            # Ideal: intro 10-20%, body 60-80%, conclusion 10-20%
-            distribution_score = 70  # Base score
-            issues = []
-            
-            # Check introduction proportion
-            if intro_proportion < 0.05:
-                distribution_score -= 15
-                issues.append("Introduction is too brief (under 5% of total time)")
-            elif intro_proportion < 0.1:
-                distribution_score -= 5
-                issues.append("Introduction could be slightly longer (under 10% of total time)")
-            elif intro_proportion > 0.25:
-                distribution_score -= 15
-                issues.append("Introduction is too long (over 25% of total time)")
-            elif intro_proportion > 0.2:
-                distribution_score -= 5
-                issues.append("Introduction could be slightly shorter (over 20% of total time)")
-                
-            # Check body proportion
-            if body_proportion < 0.5:
-                distribution_score -= 20
-                issues.append("Body of speech is too short (under 50% of total time)")
-            elif body_proportion < 0.6:
-                distribution_score -= 10
-                issues.append("Body of speech could be expanded (under 60% of total time)")
-            elif body_proportion > 0.85:
-                distribution_score -= 15
-                issues.append("Body is too dominant (over 85% of total time)")
-                
-            # Check conclusion proportion
-            if conclusion_proportion < 0.05:
-                distribution_score -= 15
-                issues.append("Conclusion is too brief (under 5% of total time)")
-            elif conclusion_proportion < 0.1:
-                distribution_score -= 5
-                issues.append("Conclusion could be slightly longer (under 10% of total time)")
-            elif conclusion_proportion > 0.25:
-                distribution_score -= 15
-                issues.append("Conclusion is too long (over 25% of total time)")
-            elif conclusion_proportion > 0.2:
-                distribution_score -= 5
-                issues.append("Conclusion could be slightly shorter (over 20% of total time)")
-            
-            # Bonus for near-ideal distribution
-            if (0.1 <= intro_proportion <= 0.2 and 
-                0.6 <= body_proportion <= 0.8 and 
-                0.1 <= conclusion_proportion <= 0.2):
-                distribution_score += 20
-                issues.append("Excellent balance between introduction, body, and conclusion")
-            
-            # Cap the score
-            distribution_score = max(40, min(100, distribution_score))
-            
-            # Set time distribution score and feedback
-            time_distribution_score = distribution_score
-            
-            if issues:
-                time_distribution_feedback = " ".join(issues)
-            else:
-                time_distribution_feedback = "Good distribution of time across speech sections."
-            
-            # Determine overall quality of time distribution
-            if distribution_score >= 90:
-                distribution_quality = "excellent"
-            elif distribution_score >= 80:
-                distribution_quality = "very_good"
-            elif distribution_score >= 70:
-                distribution_quality = "good"
-            elif distribution_score >= 50:
-                distribution_quality = "adequate"
-            else:
-                distribution_quality = "poor"
-        
-        # Calculate final time utilization score (weighted average)
-        # 60% compliance with expected duration, 40% effective distribution
-        if structure_analysis:
-            time_utilization_score = (compliance_score * 0.6) + (time_distribution_score * 0.4)
-        else:
-            time_utilization_score = compliance_score
+        # Apply scoring rules - Scale scores from 0-10 to 0-100 for consistency
+        if deviation == 0 or deviation <= 10:  # Within range or ±10 seconds
+            score = 100.0
+            message = "Excellent timing! Speech duration was perfect."
+        elif deviation <= 15:  # ±10-15 seconds
+            score = 75.0
+            message = "Good timing, but slightly outside the ideal range."
+        elif deviation <= 25:  # ±15-25 seconds
+            score = 50.0
+            message = "Speech duration needs moderate adjustment."
+        elif deviation <= 30:  # ±25-30 seconds
+            score = 30.0
+            message = "Speech duration needs significant adjustment."
+        else:  # More than 30 seconds off
+            score = 0.0
+            message = "Speech duration was substantially outside the expected range."
         
         return {
-            "time_utilization_score": time_utilization_score,
-            "compliance_score": compliance_score,
-            "status": status,
+            "score": score,  # Score out of 100
+            "time_utilization_score": score,  # Add this for compatibility
+            "actual_duration_minutes": round(actual_minutes, 1),
+            "expected_range": {
+                "min_minutes": min_minutes,
+                "max_minutes": max_minutes
+            },
+            "deviation_seconds": round(deviation, 1),
             "message": message,
-            "actual_duration_minutes": actual_duration / 60,
-            "min_expected_minutes": min_minutes,
-            "max_expected_minutes": max_minutes,
-            "deviation": deviation * 100,  # Convert to percentage
-            "time_distribution": {
-                "score": time_distribution_score,
-                "quality": distribution_quality,
-                "feedback": time_distribution_feedback,
-                "breakdown": time_breakdown
-            }
+            "status": "within_range" if score >= 75 else "needs_adjustment"
         }
-    except (ValueError, TypeError, AttributeError) as e:
-        # If there's an error parsing the expected duration, give a neutral score
+        
+    except Exception as e:
+        print(f"Error in time utilization evaluation: {e}")
         return {
-            "time_utilization_score": 70.0,
-            "compliance_score": 70.0,
-            "status": "error",
-            "message": f"Unable to analyze time utilization: {str(e)}",
-            "actual_duration_minutes": actual_duration / 60,
-            "min_expected_minutes": 0,
-            "max_expected_minutes": 0,
-            "deviation": 0,
-            "time_distribution": {
-                "score": 70.0,
-                "quality": "unknown",
-                "feedback": "Unable to analyze time distribution due to an error.",
-                "breakdown": {}
-            }
+            "score": 70.0,
+            "time_utilization_score": 70.0,  # Add this for compatibility
+            "actual_duration_minutes": 0,
+            "expected_range": {"min_minutes": 0, "max_minutes": 0},
+            "deviation_seconds": 0,
+            "message": "Error evaluating time utilization",
+            "status": "error"
         }
 
 def get_rating_description(score):
@@ -513,252 +395,37 @@ def get_rating_description(score):
     else:
         return "Needs Improvement"
 
-def analyze_topic_relevance(topic, transcription):
+def evaluate_speech_development(transcription: str, actual_duration: int, expected_duration: str) -> dict:
     """
-    Analyze how well the speech content aligns with the provided topic.
-    
-    Parameters:
-    topic (str): The stated topic of the speech
-    transcription (str): The transcribed speech text
-    
-    Returns:
-    dict: Analysis of topic relevance with scores
-    """
-    try:
-        # Make sure NLTK resources are available
-        download_nltk_data()
-        
-        # Return default values for empty inputs
-        if not topic or not transcription:
-            return {
-                "relevance_score": 75.0,
-                "keyword_match_score": 0.0,
-                "semantic_similarity_score": 0.0,
-                "keyword_distribution_score": 0.0,
-                "topic_keywords": [],
-                "matched_keywords": []
-            }
-        
-        # Clean and preprocess text
-        try:
-            stop_words = set(stopwords.words('english'))
-        except LookupError:
-            # If stopwords aren't available, use a simple fallback
-            print("Warning: NLTK stopwords not available, using fallback")
-            stop_words = {'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 'by'}
-        
-        try:
-            lemmatizer = WordNetLemmatizer()
-        except LookupError:
-            # If WordNet isn't available, just use identity function
-            print("Warning: NLTK WordNet not available, using identity function")
-            class IdentityLemmatizer:
-                def lemmatize(self, word):
-                    return word
-            lemmatizer = IdentityLemmatizer()
-        
-        def clean_text(text):
-            try:
-                # Remove punctuation and convert to lowercase
-                text = text.lower()
-                text = re.sub(r'\[\d+\.\d+ second pause\]', '', text)  # Remove pause markers
-                text = text.translate(str.maketrans('', '', string.punctuation))
-                # Tokenize and remove stopwords
-                words = word_tokenize(text)
-                words = [word for word in words if word not in stop_words and len(word) > 2]
-                # Lemmatize words
-                words = [lemmatizer.lemmatize(word) for word in words]
-                return words
-            except Exception as e:
-                print(f"Error in clean_text: {str(e)}")
-                # Return simple word split as fallback
-                text = text.lower()
-                text = re.sub(r'[^\w\s]', '', text)
-                return [word for word in text.split() if word not in stop_words and len(word) > 2]
-        
-        # Extract topic keywords
-        topic_words = clean_text(topic)
-        
-        # Get POS tags to identify key nouns and verbs in topic
-        try:
-            topic_pos_tags = nltk.pos_tag(topic_words)
-            
-            # Extract important words from topic (nouns, verbs, adjectives)
-            important_tags = {'NN', 'NNS', 'NNP', 'NNPS', 'VB', 'VBD', 'VBG', 'VBN', 'VBP', 'VBZ', 'JJ', 'JJR', 'JJS'}
-            key_topic_words = [word for word, tag in topic_pos_tags if tag[:2] in important_tags]
-        except Exception as e:
-            print(f"Error in POS tagging: {str(e)}")
-            # If POS tagging fails, just use all topic words
-            key_topic_words = topic_words
-        
-        # If we couldn't extract any key words, use all topic words
-        if not key_topic_words and topic_words:
-            key_topic_words = topic_words
-        
-        # Clean transcription
-        transcript_words = clean_text(transcription)
-        
-        # Calculate keyword match score
-        matched_keywords = []
-        keyword_match_score = 0.0
-        
-        if key_topic_words:
-            for keyword in key_topic_words:
-                if keyword in transcript_words:
-                    matched_keywords.append(keyword)
-            
-            keyword_match_score = (len(matched_keywords) / len(key_topic_words)) * 100 if key_topic_words else 0.0
-        
-        # Calculate keyword distribution score - this part was missing
-        keyword_distribution_score = 0.0
-        if matched_keywords:
-            try:
-                # Split transcript into segments (beginning, middle, end)
-                sentences = sent_tokenize(transcription)
-                total_sentences = len(sentences)
-                
-                if total_sentences < 3:
-                    keyword_distribution_score = 50.0
-                else:
-                    beginning = ' '.join(sentences[:total_sentences//3])
-                    middle = ' '.join(sentences[total_sentences//3:2*total_sentences//3])
-                    end = ' '.join(sentences[2*total_sentences//3:])
-                    
-                    sections = [beginning, middle, end]
-                    section_scores = []
-                    
-                    for section in sections:
-                        section_words = clean_text(section)
-                        section_matched = sum(1 for keyword in matched_keywords if keyword in section_words)
-                        section_score = section_matched / len(matched_keywords) if matched_keywords else 0
-                        section_scores.append(section_score)
-                    
-                    # If keywords appear in all sections, that's ideal
-                    if all(score > 0 for score in section_scores):
-                        keyword_distribution_score = 90.0 + 10.0 * min(section_scores) / max(max(section_scores), 0.001)
-                    # If keywords appear in 2 of 3 sections, that's good
-                    elif sum(score > 0 for score in section_scores) == 2:
-                        keyword_distribution_score = 75.0
-                    # If keywords only appear in 1 section, that's not ideal but okay
-                    else:
-                        keyword_distribution_score = 60.0
-            except Exception as e:
-                print(f"Error in keyword distribution analysis: {str(e)}")
-                keyword_distribution_score = 50.0
-        else:
-            keyword_distribution_score = 50.0
-        
-        # TF-IDF implementation with proper error handling
-        semantic_similarity_score = 0.0
-        try:
-            if topic and transcription and len(topic.split()) > 0 and len(transcription.split()) > 0:
-                # Use TF-IDF vectorizer
-                vectorizer = TfidfVectorizer(min_df=1, max_features=1000)
-                
-                # Handle very short inputs by adding placeholder content
-                # This prevents TfidfVectorizer from failing on very short inputs
-                safe_topic = topic
-                safe_transcript = transcription
-                
-                # Make sure inputs are long enough for TF-IDF
-                if len(topic.split()) < 3:
-                    safe_topic = topic + " topic placeholder text for analysis"
-                if len(transcription.split()) < 3:
-                    safe_transcript = transcription + " transcript placeholder text for analysis"
-                
-                # Handle empty vocabulary error
-                try:
-                    tfidf_matrix = vectorizer.fit_transform([safe_topic, safe_transcript])
-                    
-                    # Calculate cosine similarity (will be between 0 and 1)
-                    similarity = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
-                    
-                    # Convert to a score out of 100
-                    semantic_similarity_score = similarity * 100
-                except ValueError as ve:
-                    print(f"TF-IDF vectorization error: {ve}")
-                    # Fallback to simple word overlap ratio if vectorization fails
-                    topic_set = set(safe_topic.lower().split())
-                    transcript_set = set(safe_transcript.lower().split())
-                    
-                    if topic_set and transcript_set:
-                        overlap = len(topic_set.intersection(transcript_set))
-                        semantic_similarity_score = (overlap / len(topic_set)) * 100
-                    else:
-                        semantic_similarity_score = 60.0  # Default when no meaningful comparison is possible
-            else:
-                print("Topic or transcription too short for TF-IDF analysis")
-                semantic_similarity_score = 60.0
-        except Exception as e:
-            print(f"Error calculating semantic similarity: {e}")
-            semantic_similarity_score = 60.0
-        
-        # The rest of the function remains the same
-        # ...existing code...
-        
-        # Calculate overall relevance score with weighted components
-        # 40% keyword match, 30% semantic similarity, 30% keyword distribution
-        relevance_score = (
-            keyword_match_score * 0.4 +
-            semantic_similarity_score * 0.3 +
-            keyword_distribution_score * 0.3
-        )
-        
-        # Ensure score is within 0-100 range and provide a floor of 50 if any text is present
-        relevance_score = max(50 if topic and transcription else 0, min(100, relevance_score))
-        
-        return {
-            "relevance_score": round(relevance_score, 1),
-            "keyword_match_score": round(keyword_match_score, 1),
-            "semantic_similarity_score": round(semantic_similarity_score, 1),
-            "keyword_distribution_score": round(keyword_distribution_score, 1),
-            "topic_keywords": key_topic_words,
-            "matched_keywords": matched_keywords
-        }
-    except Exception as e:
-        print(f"Error in topic relevance analysis: {str(e)}")
-        return {
-            "relevance_score": 75.0,
-            "keyword_match_score": 0.0,
-            "semantic_similarity_score": 0.0,
-            "keyword_distribution_score": 0.0,
-            "topic_keywords": [],
-            "matched_keywords": []
-        }
-
-def evaluate_speech_development(transcription, topic, actual_duration, expected_duration):
-    """
-    Evaluate the development of a speech based on structure, time utilization, and topic relevance.
+    Evaluate the development of a speech based on structure and time utilization.
     
     Parameters:
     transcription (str): The transcribed speech text
-    topic (str): The topic of the speech
     actual_duration (int): Actual duration in seconds
     expected_duration (str): Expected duration string (e.g., "5–7 minutes")
     
     Returns:
-    dict: Complete speech development evaluation
+    dict: Complete speech development evaluation with structure and time utilization analysis
     """
     # Analyze structure
     structure_analysis = analyze_speech_structure(transcription)
     
     # Evaluate time utilization with structure information
-    time_analysis = evaluate_time_utilization(actual_duration, expected_duration, structure_analysis)
-    
-    # Analyze topic relevance
-    topic_analysis = analyze_topic_relevance(topic, transcription)
-    topic_relevance = topic_analysis["relevance_score"]
+    time_analysis = evaluate_time_utilization(actual_duration, expected_duration)
     
     # Calculate overall development score with weights
-    structure_weight = 0.5
-    time_weight = 0.3
-    relevance_weight = 0.2
+    structure_weight = 0.6  # Increased from 0.5
+    time_weight = 0.4      # Increased from 0.3
     
-    overall_score = (
-        structure_analysis["structure_score"] * structure_weight +
-        time_analysis["time_utilization_score"] * time_weight +
-        topic_relevance * relevance_weight
-    )
+    # Scale structure score from 0-100 to 0-10
+    structure_score = structure_analysis["structure_score"] / 10
+    
+    # Use either score or time_utilization_score key from time_analysis
+    # Scale time score from 0-100 to 0-10
+    time_score = time_analysis.get("time_utilization_score", time_analysis.get("score", 70.0)) / 10
+    
+    # Calculate overall score (will be out of 10 since both components are out of 10)
+    overall_score = (structure_score * structure_weight) + (time_score * time_weight)
     
     # Generate structure-specific feedback
     structure_feedback = []
@@ -798,12 +465,10 @@ def evaluate_speech_development(transcription, topic, actual_duration, expected_
     
     # Add feedback about time distribution if available
     if "time_distribution" in time_analysis and time_analysis["time_distribution"]["breakdown"]:
-        # Get the section with the most problematic proportion
         intro_percent = time_analysis["time_distribution"]["breakdown"]["introduction_percentage"]
         body_percent = time_analysis["time_distribution"]["breakdown"]["body_percentage"]
         conclusion_percent = time_analysis["time_distribution"]["breakdown"]["conclusion_percentage"]
         
-        # Identify the most significant time distribution issue
         if intro_percent < 5:
             time_feedback.append("Your introduction was too brief. Aim for 10-15% of your total speech time.")
         elif intro_percent > 25:
@@ -819,26 +484,8 @@ def evaluate_speech_development(transcription, topic, actual_duration, expected_
         elif conclusion_percent > 25:
             time_feedback.append("Your conclusion was too long. Try to keep it to 10-15% of your total speech time.")
         
-        # If no significant issues and distribution quality is good or better, provide positive feedback
         if not time_feedback[1:] and time_analysis["time_distribution"]["quality"] in ["good", "very_good", "excellent"]:
             time_feedback.append("You allocated your time effectively between introduction, body, and conclusion.")
-    
-    # Generate topic relevance feedback
-    topic_feedback = []
-    
-    if topic_analysis["keyword_match_score"] < 60:
-        if topic_analysis["topic_keywords"]:
-            topic_feedback.append(f"Your speech didn't include many keywords related to '{topic}'. Try to incorporate terms like: {', '.join(topic_analysis['topic_keywords'][:3])}.")
-        else:
-            topic_feedback.append(f"Your speech seemed to stray from the topic '{topic}'. Try to keep your content more focused on the main subject.")
-    
-    if topic_analysis["keyword_distribution_score"] < 70:
-        topic_feedback.append("Reference your topic throughout the speech, not just in one section.")
-    
-    if topic_analysis["relevance_score"] >= 85:
-        topic_feedback.append(f"Excellent job staying on topic. Your speech clearly addressed '{topic}'.")
-    elif topic_analysis["relevance_score"] >= 70:
-        topic_feedback.append(f"Your speech generally stayed on topic. Consider making '{topic}' more central to your message.")
     
     # Round to 1 decimal place
     overall_score = round(overall_score, 1)
@@ -847,22 +494,16 @@ def evaluate_speech_development(transcription, topic, actual_duration, expected_
     rating = get_rating_description(overall_score)
     
     return {
-        "development_score": overall_score,
+        "development_score": overall_score,  # Already out of 10
         "rating": rating,
         "structure": {
-            "score": round(structure_analysis["structure_score"], 1),
+            "score": round(structure_score, 1),  # Now out of 10
             "details": structure_analysis,
             "feedback": structure_feedback
         },
         "time_utilization": {
-            "score": round(time_analysis["time_utilization_score"], 1),
+            "score": round(time_score, 1),  # Now out of 10
             "details": time_analysis,
             "feedback": time_feedback
-        },
-        "topic_relevance": {
-            "score": round(topic_relevance, 1),
-            "details": topic_analysis,
-            "feedback": topic_feedback,
-            "topic": topic
         }
     }
