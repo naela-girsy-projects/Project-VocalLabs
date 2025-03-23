@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends, File, UploadFile, Form
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
@@ -147,7 +148,7 @@ def generate_timing_feedback(actual_duration_str, expected_duration, speech_type
 
 @app.post("/upload/")
 async def upload_file(file: UploadFile = File(...), 
-                      topic: str = Form(None),  # Topic received here
+                      topic: str = Form(None),
                       speech_type: str = Form(None), 
                       expected_duration: str = Form(None), 
                       actual_duration: str = Form(None), 
@@ -158,139 +159,177 @@ async def upload_file(file: UploadFile = File(...),
     if not topic or not speech_type or not expected_duration or not actual_duration or not user_id:
         raise HTTPException(status_code=422, detail="Missing required fields")
     
+    # Save file locally first
     file_location = os.path.join(UPLOAD_DIR, file.filename)
-    with open(file_location, "wb") as f:
-        f.write(await file.read())
-    logging.info(f"Received file: {file.filename}")
-
-    # Upload the file to Firebase Storage
     try:
-        bucket = storage.bucket()  # Get the default Firebase Storage bucket
-        blob = bucket.blob(f"audio/{user_id}/{file.filename}")  # Create a unique path for the file
-        file.file.seek(0)  # Reset the file stream to the beginning
-        blob.upload_from_file(file.file)  # Upload the file directly from the request
-        blob.make_public()  # Make the file publicly accessible
-        audio_url = blob.public_url  # Get the public URL of the file
+        # Read the file content
+        file_content = await file.read()
+        
+        # Save locally
+        with open(file_location, "wb") as f:
+            f.write(file_content)
+        
+        # Upload to Firebase Storage
+        bucket = storage.bucket()
+        blob = bucket.blob(f"audio/{user_id}/{file.filename}")
+        
+        # Upload from local file
+        blob.upload_from_filename(file_location)
+        blob.make_public()
+        audio_url = blob.public_url
         logging.info(f"File uploaded to Firebase Storage: {audio_url}")
-    except Exception as e:
-        logging.error(f"Error uploading file to Firebase Storage: {e}")
-        raise HTTPException(status_code=500, detail="Failed to upload file to Firebase Storage")
-
-    # Transcribe the audio file
-    result = transcribe_audio(model, file_location)
-    transcription, pause_duration = process_transcription(result)
-    filler_analysis = analyze_filler_words(result)
-    pause_analysis = analyze_mid_sentence_pauses(transcription)
-    
-    # Convert actual_duration string (MM:SS) to seconds
-    actual_duration_seconds = 0
-    try:
-        parts = actual_duration.split(':')
-        actual_duration_seconds = int(parts[0]) * 60 + int(parts[1])
-    except (ValueError, IndexError, AttributeError):
-        logging.warning("Could not parse actual_duration, using 0 seconds")
-    
-    # Pass speech details to proficiency evaluation
-    proficiency_scores = calculate_proficiency_score(
-        filler_analysis, 
-        pause_analysis,
-        actual_duration,
-        expected_duration
-    )
-    
-    # Analyze voice modulation
-    modulation_analysis = analyze_voice_modulation(file_location)
-    
-    # New: Analyze speech development
-    speech_development = evaluate_speech_development(
-        transcription,
-        actual_duration_seconds,
-        expected_duration
-    )
-    
-    # Add speech effectiveness evaluation with proper error handling
-    try:
+        
+        # Process the audio file
+        result = transcribe_audio(model, file_location)
+        if not result:
+            raise HTTPException(status_code=500, detail="Transcription failed")
+            
+        transcription, pause_duration = process_transcription(result)
+        filler_analysis = analyze_filler_words(result)
+        pause_analysis = analyze_mid_sentence_pauses(transcription)
+        
+        # Convert actual_duration
+        actual_duration_seconds = 0
+        try:
+            parts = actual_duration.split(':')
+            actual_duration_seconds = int(parts[0]) * 60 + int(parts[1])
+        except:
+            logging.warning("Could not parse actual_duration")
+        
+        # Get all analysis results
+        proficiency_scores = calculate_proficiency_score(
+            filler_analysis, 
+            pause_analysis,
+            actual_duration,
+            expected_duration
+        )
+        
+        modulation_analysis = analyze_voice_modulation(file_location)
+        speech_development = evaluate_speech_development(
+            transcription,
+            actual_duration_seconds,
+            expected_duration
+        )
+        
         speech_effectiveness = evaluate_speech_effectiveness(
             transcription, 
-            topic or "General Speech",  # Provide default topic if none
+            topic or "General Speech",
             expected_duration or "5-7 minutes",
             actual_duration_seconds
         )
         
-        # Ensure scores are valid numbers and within correct ranges
-        total_score = max(8.0, min(20.0, float(speech_effectiveness.get('total_score', 8.0))))
-        relevance_score = max(4.0, min(10.0, float(speech_effectiveness.get('relevance_score', 4.0))))
-        purpose_score = max(4.0, min(10.0, float(speech_effectiveness.get('purpose_score', 4.0))))
-        
-        speech_effectiveness.update({
-            'total_score': total_score,
-            'relevance_score': relevance_score,
-            'purpose_score': purpose_score
-        })
-        
-        logging.info("\nSpeech Effectiveness Analysis:")
-        logging.info(f"Total Score: {total_score}/20")
-        logging.info(f"Relevance Score: {relevance_score}/10")
-        logging.info(f"Purpose Score: {purpose_score}/10")
-        
-    except Exception as e:
-        logging.error(f"Error in speech effectiveness evaluation: {str(e)}")
-        speech_effectiveness = {
-            "total_score": 12.0,  # Higher default scores
-            "relevance_score": 6.0,
-            "purpose_score": 6.0,
-            "details": {},
-            "feedback": ["Error analyzing speech effectiveness"]
-        }
-    
-    # Add vocabulary evaluation
-    try:
         vocabulary_evaluation = evaluate_speech(result, transcription, file_location, "general")
-    except Exception as e:
-        logging.error(f"Error in vocabulary evaluation: {str(e)}")
-        vocabulary_evaluation = {
-            "vocabulary_score": 80.0,  # Default score
-            "grammar_word_selection": {"score": 80.0},
-            "pronunciation": {"score": 80.0}
-        }
-    
-    # Get vocabulary evaluation
-    vocabulary_evaluation = evaluate_speech(result, transcription, file_location, "general")
-    
-    # Debug log the raw scores with more detail
-    print("\nVocabulary Evaluation Scores:")
-    print(f"Total Score (0-20): {vocabulary_evaluation['vocabulary_score']}")
-    print(f"Grammar Score (0-20): {vocabulary_evaluation['grammar_word_selection']['score']}")
-    print(f"Grammar Details: {vocabulary_evaluation['grammar_word_selection']['details']}")
-    print(f"Pronunciation Score (0-20): {vocabulary_evaluation['pronunciation']['score']}")
-    
-    # Generate timing feedback
-    timing_feedback = generate_timing_feedback(actual_duration, expected_duration, speech_type)
+        timing_feedback = generate_timing_feedback(actual_duration, expected_duration, speech_type)
+        
+        # Generate speech type feedback
+        speech_type_feedback = ""
+        if speech_type == "Prepared Speech":
+            speech_type_feedback = "Prepared speeches should be well-structured with clear introduction, body, and conclusion."
+        elif speech_type == "Impromptu Speech":
+            speech_type_feedback = "Impromptu speeches show your ability to think quickly and should be coherent and relevant."
+        else:
+            speech_type_feedback = "Speech type feedback is unavailable."
+        
+        # Clean up local file
+        if os.path.exists(file_location):
+            os.remove(file_location)
+        
+        # Store results in Firestore
+        try:
+            speech_data = {
+                # Core metrics
+                "speech_development_score": speech_development.get("development_score", 0),
+                "vocabulary_evaluation_score": proficiency_scores.get("vocabulary_score", 0),
+                "effectiveness_score": proficiency_scores.get("effectiveness_score", 0),
+                "voice_analysis_score": modulation_analysis["scores"].get("total_score", 0),
+                "proficiency_score": proficiency_scores.get("final_score", 0),
+                
+                # Basic info
+                "topic": topic,
+                "speech_type": speech_type,
+                "expected_duration": expected_duration,
+                "actual_duration": actual_duration,
+                "audio_url": audio_url,
+                "transcription": transcription,
+                
+                # Detailed analysis
+                "pause_duration": pause_duration,
+                "filler_analysis": filler_analysis,
+                "pause_analysis": pause_analysis,
+                "proficiency_scores": proficiency_scores,
+                "modulation_analysis": modulation_analysis,
+                "speech_development": speech_development,
+                "speech_effectiveness": speech_effectiveness,
+                "vocabulary_evaluation": vocabulary_evaluation,
+                "timing_feedback": timing_feedback,
+                "speech_type_feedback": speech_type_feedback,
+                
+                # Metadata
+                "user_id": user_id,
+                "recorded_at": firestore.SERVER_TIMESTAMP
+            }
+            
+            # Save under the user's document in Firestore
+            user_ref = db.collection("users").document(user_id)
+            speeches_ref = user_ref.collection("speeches")
+            speeches_ref.add(speech_data)
+            
+            logging.info(f"Speech data saved for user: {user_id}")
+        except Exception as db_error:
+            logging.error(f"Error storing speech data in Firestore: {str(db_error)}")
+            # Continue execution even if database storage fails
 
-    # Generate speech type feedback
-    speech_type_feedback = ""
-    if speech_type == "Prepared Speech":
-        speech_type_feedback = "Prepared speeches should be well-structured with clear introduction, body, and conclusion."
-    elif speech_type == "Impromptu Speech":
-        speech_type_feedback = "Impromptu speeches show your ability to think quickly and should be coherent and relevant."
-    else:
-        speech_type_feedback = "Speech type feedback is unavailable."
-    
-    # Combine final response
-    response = {
-        "transcription": transcription,
-        "pause_duration": pause_duration,
-        "filler_analysis": filler_analysis,
-        "pause_analysis": pause_analysis,
-        "proficiency_scores": proficiency_scores,
-        "modulation_analysis": modulation_analysis,
-        "speech_development": speech_development,
-        "speech_effectiveness": speech_effectiveness,
-        "vocabulary_evaluation": vocabulary_evaluation,
-        "timing_feedback": timing_feedback,
-        "speech_type_feedback": speech_type_feedback,
-        "audio_url": audio_url
-    }
-    
-    # Convert to JSON-compatible response
-    return JSONResponse(content=jsonable_encoder(response))
+        # Prepare enhanced response
+        response = {
+            "message": "Speech uploaded and analyzed successfully",
+            "speech_data": speech_data,
+            "filename": file.filename,
+            "transcription": transcription,
+            "pause_duration": pause_duration,
+            "pause_analysis": pause_analysis,
+            "filler_analysis": filler_analysis,
+            "proficiency_scores": proficiency_scores,
+            "modulation_analysis": modulation_analysis,
+            "speech_development": speech_development,
+            "speech_effectiveness": speech_effectiveness,
+            "vocabulary_evaluation": vocabulary_evaluation,
+            "timing_feedback": timing_feedback,
+            "speech_type_feedback": speech_type_feedback,
+            "audio_url": audio_url,
+            "speech_details": {
+                "topic": topic,
+                "speech_type": speech_type,
+                "expected_duration": expected_duration,
+                "actual_duration": actual_duration
+            },
+            "enhanced_analysis": {
+                "timing_compliance": timing_feedback,
+                "speech_type_feedback": speech_type_feedback,
+                "topic_relevance": {
+                    "score": proficiency_scores.get('timing_score', 7) * 10,
+                    "feedback": f"Your speech on '{topic}' was analyzed for content and delivery quality."
+                },
+                "recommendations": [
+                    f"Practice keeping your {speech_type.lower()} within the {expected_duration} timeframe.",
+                    "Focus on reducing filler words to sound more confident.",
+                    "Use pauses strategically rather than mid-sentence."
+                ] + speech_development.get("structure", {}).get("feedback", [])
+            }
+        }
+
+        # Log serialization attempts for debugging
+        for key, value in response.items():
+            try:
+                json.dumps({key: value})
+            except Exception as e:
+                logging.error(f"Serialization error in field '{key}': {e}")
+                response[key] = str(value)  # Fallback to string conversion
+
+        return JSONResponse(content=jsonable_encoder(response))
+        
+    except Exception as e:
+        logging.error(f"Error processing file: {str(e)}")
+        # Clean up local file if it exists
+        if os.path.exists(file_location):
+            os.remove(file_location)
+        raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
