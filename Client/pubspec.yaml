@@ -17,6 +17,7 @@ environment:
 
 # Dependencies specify other packages that your package needs in order to work.
 dependencies:
+  google_fonts: ^6.1.0
   flutter:
     sdk: flutter
   file_selector: ^0.9.0  # Ensure this is included
@@ -75,6 +76,8 @@ flutter:
   assets:
     - assets/images/
     - assets/images/Our_Logo.jpg
+    - assets/game/character.png
+    - assets/game/obstacle.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

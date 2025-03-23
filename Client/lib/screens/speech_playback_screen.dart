@@ -43,6 +43,7 @@ class _SpeechPlaybackScreenState extends State<SpeechPlaybackScreen> {
   late SpeechModel _speechModel;
   bool _isProcessing = false;
   bool _audioInitialized = false;
+  Map<String, dynamic>? _apiResponse;
 
   @override
   void initState() {
@@ -313,12 +314,36 @@ class _SpeechPlaybackScreenState extends State<SpeechPlaybackScreen> {
   }
 
   void _handleSaveAndAnalyze() async {
-    // Show loading screen first
     if (!mounted) return;
 
+    // Keep track of the current loading screen
+    late BuildContext loadingContext;
+
+    // Show initial loading screen
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const LoadingScreen()),
+      MaterialPageRoute(
+        builder: (context) {
+          loadingContext = context;
+          return LoadingScreen(
+            apiResponse: null,
+            onAnalysisButtonPressed: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => FeedbackScreen(
+                    transcription: _transcription ?? '',
+                    audioData: widget.isFromHistory ? null : _fileBytes,
+                    audioUrl: widget.isFromHistory ? (_fileUrl ?? widget.audioUrl) : null,
+                    apiResponse: _apiResponse,
+                    speechModel: _speechModel,
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
 
     // Perform upload and analysis
@@ -329,17 +354,45 @@ class _SpeechPlaybackScreenState extends State<SpeechPlaybackScreen> {
     if (apiResponse != null) {
       // Save speech data to history
       await _saveSpeechToHistory(apiResponse);
+      
+      // Store the API response
+      _apiResponse = apiResponse;
 
-      // Navigate to feedback screen with appropriate data
-      _navigateToFeedback(apiResponse);
+      // Update loading screen with the API response
+      if (mounted) {
+        Navigator.pushReplacement(
+          loadingContext,
+          MaterialPageRoute(
+            builder: (context) => LoadingScreen(
+              apiResponse: apiResponse,
+              onAnalysisButtonPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => FeedbackScreen(
+                      transcription: _transcription ?? '',
+                      audioData: widget.isFromHistory ? null : _fileBytes,
+                      audioUrl: widget.isFromHistory ? (_fileUrl ?? widget.audioUrl) : null,
+                      apiResponse: apiResponse,
+                      speechModel: _speechModel,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      }
     } else {
-      // Handle error - go back to playback screen
-      Navigator.pop(context); // Pop loading screen
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to analyze speech. Please try again.'),
-        ),
-      );
+      // Handle error
+      if (mounted) {
+        Navigator.pop(context); // Pop loading screen
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to analyze speech. Please try again.'),
+          ),
+        );
+      }
     }
   }
 
