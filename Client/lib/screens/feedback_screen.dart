@@ -7,6 +7,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'dart:typed_data';
 import 'package:vocallabs_flutter_app/screens/advanced_analysis.dart'; // Add this import
 import 'package:vocallabs_flutter_app/models/speech_model.dart';
+import 'package:vocallabs_flutter_app/utils/speech_suggestions.dart';
 
 class FeedbackScreen extends StatefulWidget {
   final String transcription;
@@ -212,6 +213,77 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         _apiResponse!.containsKey('speech_development') &&
         _apiResponse!['speech_development'] is Map<String, dynamic> &&
         _apiResponse!['speech_development'].containsKey('topic_relevance');
+  }
+
+  List<SpeechSuggestion> _getLowestScoringSuggestions() {
+    if (_apiResponse == null) return [];
+
+    List<SpeechSuggestion> allScores = [
+      SpeechSuggestion(
+        category: 'structure',
+        suggestion: SpeechSuggestions.suggestionMap['structure']!,
+        score: _apiResponse!['speech_development']?['structure']?['score']?.toDouble() ?? 10.0,
+      ),
+      SpeechSuggestion(
+        category: 'timeUtilization',
+        suggestion: SpeechSuggestions.suggestionMap['timeUtilization']!,
+        score: _apiResponse!['speech_development']?['time_utilization']?['score']?.toDouble() ?? 10.0,
+      ),
+      // Add other categories similarly
+      // ...
+    ];
+
+    // Sort by score and get lowest 3
+    allScores.sort((a, b) => a.score.compareTo(b.score));
+    return allScores.take(3).toList();
+  }
+
+  // Replace the static suggestions section with this:
+  Widget _buildSuggestionsSection() {
+    final suggestions = _getLowestScoringSuggestions();
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Suggestions', style: AppTextStyles.heading2),
+        const SizedBox(height: 16),
+        ...suggestions.map((suggestion) {
+          Color cardColor;
+          if (suggestion.score < 4) {
+            cardColor = AppColors.error.withOpacity(0.1);
+          } else if (suggestion.score < 7) {
+            cardColor = AppColors.warning.withOpacity(0.1);
+          } else {
+            cardColor = AppColors.success.withOpacity(0.1);
+          }
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: CardLayout(
+              backgroundColor: cardColor,
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.lightbulb_outline,
+                    color: suggestion.score < 4 ? AppColors.error : 
+                           suggestion.score < 7 ? AppColors.warning : 
+                           AppColors.success,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      suggestion.suggestion,
+                      style: AppTextStyles.body1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      ],
+    );
   }
 
   @override
@@ -550,62 +622,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                 const SizedBox(height: 24),
 
                 // Suggestions Section
-                const Text('Suggestions', style: AppTextStyles.heading2),
-                const SizedBox(height: 16),
-                CardLayout(
-                  backgroundColor: AppColors.warning.withOpacity(0.1),
-                  padding: const EdgeInsets.all(16),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.lightbulb_outline, color: AppColors.warning),
-                      SizedBox(width: 16),
-                      Expanded(
-                        child: Text(
-                          'Work on reducing filler words like "um" and "like"',
-                          style: AppTextStyles.body1,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                CardLayout(
-                  backgroundColor: AppColors.success.withOpacity(0.1),
-                  padding: const EdgeInsets.all(16),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.lightbulb_outline, color: AppColors.success),
-                      SizedBox(width: 16),
-                      Expanded(
-                        child: Text(
-                          'Try to vary your volume more for emphasis',
-                          style: AppTextStyles.body1,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                CardLayout(
-                  backgroundColor: AppColors.primaryBlue.withOpacity(0.1),
-                  padding: const EdgeInsets.all(16),
-                  child: const Row(
-                    children: [
-                      Icon(
-                        Icons.lightbulb_outline,
-                        color: AppColors.primaryBlue,
-                      ),
-                      SizedBox(width: 16),
-                      Expanded(
-                        child: Text(
-                          'Your pace is excellent, keep it up!',
-                          style: AppTextStyles.body1,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
+                _buildSuggestionsSection(),
                 const SizedBox(height: 32),
                 // Action Buttons
                 CustomButton(
