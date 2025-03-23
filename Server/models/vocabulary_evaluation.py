@@ -1302,140 +1302,92 @@ class PronunciationAnalyzer:
         }
         
     def analyze_fluency(self, audio_features, transcript, word_alignments):
-        """
-        Analyze speech fluency (pauses, hesitations, speech rate consistency).
-        
-        Args:
-            audio_features: Extracted audio features
-            transcript: Text transcription
-            word_alignments: Word timing information
+        """Analyze speech fluency based on audio features and word alignments"""
+        try:
+            # Initialize variables
+            total_speech_length = len(transcript.split()) if transcript else 0
+            total_duration = audio_features.get('duration', 0) if audio_features else 0
             
-        Returns:
-            Dict: Fluency metrics
-        """
-        # Default fluency scores
-        pause_quality_score = 80.0
-        hesitation_score = 80.0
-        flow_score = 80.0
-        
-        if not audio_features or not word_alignments:
+            if not total_speech_length or not total_duration:
+                return {
+                    'score': 7.0,  # Default score
+                    'speaking_rate': 0,
+                    'articulation_rate': 0,
+                    'pause_pattern_score': 7.0,
+                    'details': {
+                        'total_words': 0,
+                        'total_duration': 0,
+                        'speaking_duration': 0,
+                        'pause_duration': 0
+                    }
+                }
+
+            # Calculate fluency metrics
+            speaking_duration = sum(align['duration'] for align in word_alignments) if word_alignments else 0
+            pause_duration = total_duration - speaking_duration if speaking_duration <= total_duration else 0
+            
+            speaking_rate = (total_speech_length / total_duration) * 60 if total_duration > 0 else 0
+            articulation_rate = (total_speech_length / speaking_duration) * 60 if speaking_duration > 0 else 0
+            
+            # Score pause patterns
+            pause_pattern_score = self._evaluate_pause_patterns(pause_duration, total_duration)
+            
+            # Calculate overall fluency score (out of 10)
+            base_score = 7.0  # Default base score
+            rate_score = min(10, max(4, speaking_rate / 20))  # Normalize speaking rate score
+            pause_weight = 0.4
+            rate_weight = 0.6
+            
+            fluency_score = (pause_pattern_score * pause_weight + rate_score * rate_weight)
+            
             return {
-                'overall_score': round((pause_quality_score + hesitation_score + flow_score) / 3, 1),
-                'pause_quality_score': round(pause_quality_score, 1),
-                'hesitation_score': round(hesitation_score, 1),
-                'flow_score': round(flow_score, 1),
-                'pause_count': None,
-                'avg_pause_duration': None
+                'score': round(fluency_score, 1),
+                'speaking_rate': round(speaking_rate, 1),
+                'articulation_rate': round(articulation_rate, 1),
+                'pause_pattern_score': round(pause_pattern_score, 1),
+                'details': {
+                    'total_words': total_speech_length,
+                    'total_duration': round(total_duration, 2),
+                    'speaking_duration': round(speaking_duration, 2),
+                    'pause_duration': round(pause_duration, 2)
+                }
             }
-        
-        # Detect pauses from word alignments
-        pauses = []
-        hesitations = []
-        
-        if len(word_alignments) > 1:
-            for i in range(len(word_alignments) - 1):
-                if 'end' in word_alignments[i] and 'start' in word_alignments[i+1]:
-                    gap = word_alignments[i+1]['start'] - word_alignments[i]['end']
-                    
-                    # Consider gaps > 0.25s as pauses
-                    if gap > 0.25:
-                        pauses.append(gap)
-                        
-                        # Classify long pauses as potential hesitations
-                        if gap > 0.75:
-                            hesitations.append(gap)
-        
-        # Analyze pause patterns
-        pause_count = len(pauses)
-        avg_pause_duration = np.mean(pauses) if pauses else 0
-        
-        # Analyze pause quality
-        if pauses:
-            # Calculate normalized pause metrics
-            total_speech_length = word_alignments[-1]['end'] - word_alignments[0]['start'] if len(word_alignments) > 0 else 0
-            pause_ratio = sum(pauses) / total_speech_length if total_speech_length > 0 else 0
+        except Exception as e:
+            print(f"Error in fluency analysis: {str(e)}")
+            return {
+                'score': 7.0,
+                'speaking_rate': 0,
+                'articulation_rate': 0,
+                'pause_pattern_score': 7.0,
+                'details': {
+                    'total_words': 0,
+                    'total_duration': 0,
+                    'speaking_duration': 0,
+                    'pause_duration': 0
+                }
+            }
+
+    def _evaluate_pause_patterns(self, pause_duration, total_duration):
+        """Evaluate the effectiveness of pause patterns"""
+        try:
+            if total_duration == 0:
+                return 7.0  # Default score
+                
+            pause_ratio = pause_duration / total_duration
             
-            # Evaluate pause quality - good speakers use appropriate pauses
-            # Too many or too few pauses can affect comprehension
-            if 0.1 <= pause_ratio <= 0.25:
-                # Optimal pause ratio
-                pause_quality_score = 90 - ((pause_ratio - 0.15) * 100)
-            elif pause_ratio < 0.1:
-                # Too few pauses
-                pause_quality_score = 70 + (pause_ratio * 200)
+            # Ideal pause ratio is between 0.2 and 0.3
+            if 0.2 <= pause_ratio <= 0.3:
+                return 9.0
+            elif 0.15 <= pause_ratio <= 0.35:
+                return 8.0
+            elif 0.1 <= pause_ratio <= 0.4:
+                return 7.0
             else:
-                # Too many pauses
-                pause_quality_score = 90 - ((pause_ratio - 0.25) * 120)
-                
-            # Adjust based on pause consistency
-            if len(pauses) > 2:
-                pause_std = np.std(pauses)
-                pause_cv = pause_std / avg_pause_duration if avg_pause_duration > 0 else 0
-                
-                # Consistent pauses are better
-                if pause_cv < 0.5:
-                    pause_quality_score += 5
-                elif pause_cv > 1.0:
-                    pause_quality_score -= 5
-        
-        # Analyze hesitations
-        if total_speech_length > 0:
-            hesitation_ratio = len(hesitations) / (len(word_alignments) / 10) if len(word_alignments) > 0 else 0
-            
-            # Evaluate hesitation quality - fewer hesitations are better
-            if hesitation_ratio <= 0.1:
-                # Very few hesitations
-                hesitation_score = 90
-            elif hesitation_ratio <= 0.3:
-                # Some hesitations
-                hesitation_score = 80 - ((hesitation_ratio - 0.1) * 50)
-            else:
-                # Many hesitations
-                hesitation_score = 70 - ((hesitation_ratio - 0.3) * 30)
-        
-        # Analyze speech flow using word durations
-        if len(word_alignments) > 3:
-            word_durations = []
-            for word in word_alignments:
-                if 'start' in word and 'end' in word:
-                    duration = word['end'] - word['start']
-                    word_durations.append(duration)
-            
-            if word_durations:
-                # Calculate speech rate consistency
-                mean_duration = np.mean(word_durations)
-                std_duration = np.std(word_durations)
-                duration_cv = std_duration / mean_duration if mean_duration > 0 else 0
-                
-                # Evaluate speech flow
-                # Some variation is natural, but too much indicates choppy speech
-                if duration_cv < 0.5:
-                    # Consistent flow
-                    flow_score = 90 - (duration_cv * 20)
-                elif duration_cv < 0.8:
-                    # Moderate variation
-                    flow_score = 80 - ((duration_cv - 0.5) * 30)
-                else:
-                    # Highly variable durations
-                    flow_score = 70 - ((duration_cv - 0.8) * 25)
-        
-        # Ensure scores are in valid range
-        pause_quality_score = max(60, min(95, pause_quality_score))
-        hesitation_score = max(60, min(95, hesitation_score))
-        flow_score = max(60, min(95, flow_score))
-        
-        # Overall fluency score
-        fluency_score = (pause_quality_score * 0.3) + (hesitation_score * 0.4) + (flow_score * 0.3)
-        
-        return {
-            'overall_score': round(fluency_score, 1),
-            'pause_quality_score': round(pause_quality_score, 1),
-            'hesitation_score': round(hesitation_score, 1),
-            'flow_score': round(flow_score, 1),
-            'pause_count': pause_count,
-            'avg_pause_duration': round(avg_pause_duration, 2) if pauses else None
-        }
-        
+                return 6.0
+        except Exception as e:
+            print(f"Error in pause pattern evaluation: {str(e)}")
+            return 7.0  # Default score on error
+
     def analyze_articulation(self, audio_features, transcript, word_alignments):
         """
         Analyze speech articulation quality (clarity, precision of consonants and vowels).
@@ -1547,6 +1499,9 @@ class PronunciationAnalyzer:
         # Analyze fluency
         fluency = self.analyze_fluency(audio_features, transcript, word_alignments)
         
+        # Normalize fluency score from 0-10 to 0-100 scale
+        fluency_score = fluency['score'] * 10 if 'score' in fluency else 80.0
+        
         # Analyze articulation
         articulation = self.analyze_articulation(audio_features, transcript, word_alignments)
         
@@ -1555,7 +1510,7 @@ class PronunciationAnalyzer:
         overall_score = (
             (phoneme_accuracy['overall_score'] * weights['phoneme_accuracy']) +
             (prosody['overall_score'] * weights['prosody']) +
-            (fluency['overall_score'] * weights['fluency']) +
+            (fluency_score * weights['fluency']) +  # Use normalized fluency_score
             (articulation['overall_score'] * weights['articulation'])
         )
         
@@ -1582,7 +1537,10 @@ class PronunciationAnalyzer:
             'pronunciation_score': round(overall_score, 1),
             'phoneme_accuracy': phoneme_accuracy,
             'prosody': prosody,
-            'fluency': fluency,
+            'fluency': {
+                'overall_score': fluency_score,  # Store normalized score
+                'details': fluency  # Store original fluency details
+            },
             'articulation': articulation
         }
     

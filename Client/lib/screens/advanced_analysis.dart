@@ -84,9 +84,16 @@ class _AdvancedAnalysisScreenState extends State<AdvancedAnalysisScreen> {
 
     // Initialize speech development scores
     final speechDevelopment = widget.proficiencyScores?['speech_development'] ?? {};
-    developmentScore = (speechDevelopment['development_score'] ?? 0.0).toDouble() * 0.2;
-    structureScore = ((speechDevelopment['structure'] ?? {})['score'] ?? 0.0).toDouble() * 0.2;
-    timeUtilizationScore = ((speechDevelopment['time_utilization'] ?? {})['score'] ?? 0.0).toDouble() * 0.2;
+    structureScore = ((speechDevelopment['structure'] ?? {})['score'] ?? 0.0).toDouble();
+    timeUtilizationScore = ((speechDevelopment['time_utilization'] ?? {})['score'] ?? 0.0).toDouble();
+    // Calculate total development score as sum of sub-scores
+    developmentScore = structureScore + timeUtilizationScore;  // Will be out of 20 since each sub-score is out of 10
+
+    // Debug logging for speech development
+    print('Speech Development Scores:');
+    print('Total Score (out of 20): $developmentScore');
+    print('Structure Score (out of 10): $structureScore');
+    print('Time Score (out of 10): $timeUtilizationScore');
 
     // Initialize vocabulary scores with debug logging
     final vocabularyData = widget.proficiencyScores?['vocabulary_evaluation'] ?? {};
@@ -156,25 +163,25 @@ class _AdvancedAnalysisScreenState extends State<AdvancedAnalysisScreen> {
                       _buildMetricItem(
                         icon: Icons.trending_up, // Growth/development icon
                         title: 'Speech Development',
-                        value: '${developmentScore.toStringAsFixed(1)}/20',
+                        value: '${developmentScore.toStringAsFixed(1)}/20',  // Changed to /20
                         description: _getSpeechDevelopmentDescription(
                           developmentScore * 5,
-                        ), // Scale back for description
-                        progress: developmentScore / 20,
+                        ), // Adjust scale for description
+                        progress: developmentScore / 20,  // Adjust progress bar scale
                         color: AppColors.primaryBlue,
                         subMetrics: [
                           SubMetric(
                             icon: Icons.architecture,
                             title: 'Structure of the Speech',
-                            value: '${structureScore.toStringAsFixed(1)}/20',
-                            progress: structureScore / 20,
+                            value: '${structureScore.toStringAsFixed(1)}/10',
+                            progress: structureScore / 10,  // Scale for progress bar (0-1)
                           ),
                           SubMetric(
                             icon: Icons.timer,
                             title: 'Time Duration Utilization',
                             value:
-                                '${timeUtilizationScore.toStringAsFixed(1)}/20',
-                            progress: timeUtilizationScore / 20,
+                                '${timeUtilizationScore.toStringAsFixed(1)}/10',  // Changed from /20 to /10
+                            progress: timeUtilizationScore / 10,  // Changed from /20 to /10
                           ),
                         ],
                       ),
@@ -464,9 +471,10 @@ class _AdvancedAnalysisScreenState extends State<AdvancedAnalysisScreen> {
   }
 
   String _getSpeechDevelopmentDescription(double score) {
-    if (score >= 17) return 'Exceptionally well-developed speech';
-    if (score >= 15) return 'Well-structured speech with effective timing';
-    if (score >= 13) return 'Good speech development';
+    // Score is now on 0-100 scale after multiplication by 10
+    if (score >= 85) return 'Exceptionally well-developed speech';
+    if (score >= 75) return 'Well-structured speech with effective timing';
+    if (score >= 65) return 'Good speech development';
     return 'Basic speech structure';
   }
 
