@@ -66,12 +66,11 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
           return const Center(child: Text('No data available for this week.'));
         }
 
+        // Debug log to verify fetched data
+        print('Fetched weekly speech data: ${snapshot.data}');
+
         // Process the weekly data
         final weeklyData = _processWeeklyData(snapshot.data!);
-
-        if (weeklyData.isEmpty) {
-          return const Center(child: Text('No data available for this week.'));
-        }
 
         // Calculate metrics
         final totalSpeeches = snapshot.data!.length;
@@ -191,116 +190,139 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
   }
 
   Widget _buildMonthlyView() {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: AppPadding.screenPadding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 20),
-            const Text(
-              'This Month\'s Performance',
-              style: AppTextStyles.heading2,
-            ),
-            const SizedBox(height: 20),
-            CardLayout(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+  return StreamBuilder<List<Map<String, dynamic>>>(
+    stream: _streamMonthlySpeechData(),
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Center(child: CircularProgressIndicator());
+      }
+
+      if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+        return const Center(child: Text('No data available for this month.'));
+      }
+
+      // Debug log to verify fetched data
+      print('Fetched monthly speech data: ${snapshot.data}');
+
+      // Process the monthly data
+      final monthlyData = _processMonthlyData(snapshot.data!);
+
+      // Calculate metrics
+      final totalSpeeches = snapshot.data!.length;
+
+      // Calculate total duration in seconds
+      final totalDurationInSeconds = snapshot.data!
+          .map((speech) {
+            final duration = speech['actual_duration'] as String? ?? '0:00';
+            final parts = duration.split(':');
+            if (parts.length == 2) {
+              final minutes = int.tryParse(parts[0]) ?? 0;
+              final seconds = int.tryParse(parts[1]) ?? 0;
+              return minutes * 60 + seconds;
+            }
+            return 0;
+          })
+          .reduce((a, b) => a + b);
+
+      // Calculate average duration
+      final avgDurationInSeconds =
+          totalSpeeches > 0 ? totalDurationInSeconds / totalSpeeches : 0;
+      final avgDurationMinutes = (avgDurationInSeconds ~/ 60).toString();
+      final avgDurationSeconds = (avgDurationInSeconds % 60).round().toString().padLeft(2, '0');
+
+      return SingleChildScrollView(
+        child: Padding(
+          padding: AppPadding.screenPadding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 20),
+              const Text(
+                'This Month\'s Performance',
+                style: AppTextStyles.heading2,
+              ),
+              const SizedBox(height: 20),
+              CardLayout(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Overall Score Trend',
+                      style: AppTextStyles.body1.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      height: 200,
+                      child: LineChart(_generateMonthlyScoreData(monthlyData)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text('Speech Metrics', style: AppTextStyles.heading2),
+              const SizedBox(height: 16),
+              Row(
                 children: [
-                  Text(
-                    'Overall Score Trend',
-                    style: AppTextStyles.body1.copyWith(
-                      fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: _buildMetricCard(
+                      title: 'Speeches',
+                      value: '$totalSpeeches',
+                      icon: Icons.mic,
+                      color: AppColors.primaryBlue,
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  SizedBox(height: 200, child: LineChart(_monthlyScoreData())),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text('Monthly Metrics', style: AppTextStyles.heading2),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildMetricCard(
-                    title: 'Total Speeches',
-                    value: '23',
-                    icon: Icons.mic,
-                    color: AppColors.primaryBlue,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildMetricCard(
-                    title: 'Avg. Duration',
-                    value: '5:15',
-                    icon: Icons.timer,
-                    color: AppColors.warning,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildMetricCard(
-                    title: 'Total Filler Words',
-                    value: '85',
-                    icon: Icons.text_fields,
-                    color: AppColors.error,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildMetricCard(
-                    title: 'Avg. Pace',
-                    value: '145 wpm',
-                    icon: Icons.speed,
-                    color: AppColors.success,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            const Text('Areas for Improvement', style: AppTextStyles.heading2),
-            const SizedBox(height: 16),
-            CardLayout(
-              child: Column(
-                children: [
-                  _buildImprovementItem(
-                    title: 'Volume Consistency',
-                    subtitle: 'Work on maintaining consistent volume levels',
-                    icon: Icons.volume_up,
-                    color: AppColors.warning,
-                    percentage: 68,
-                  ),
-                  const Divider(height: 24),
-                  _buildImprovementItem(
-                    title: 'Speech Duration',
-                    subtitle: 'Try to keep speeches within target duration',
-                    icon: Icons.timer,
-                    color: AppColors.error,
-                    percentage: 45,
-                  ),
-                  const Divider(height: 24),
-                  _buildImprovementItem(
-                    title: 'Pronunciation',
-                    subtitle: 'Overall pronunciation clarity is improving',
-                    icon: Icons.record_voice_over,
-                    color: AppColors.success,
-                    percentage: 82,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildMetricCard(
+                      title: 'Avg. Duration',
+                      value: '$avgDurationMinutes:$avgDurationSeconds',
+                      icon: Icons.timer,
+                      color: AppColors.warning,
+                    ),
                   ),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: 20),
+              const Text('Areas for Improvement', style: AppTextStyles.heading2),
+              const SizedBox(height: 16),
+              CardLayout(
+                child: Column(
+                  children: [
+                    _buildImprovementItem(
+                      title: 'Volume Consistency',
+                      subtitle: 'Work on maintaining consistent volume levels',
+                      icon: Icons.volume_up,
+                      color: AppColors.warning,
+                      percentage: 68,
+                    ),
+                    const Divider(height: 24),
+                    _buildImprovementItem(
+                      title: 'Speech Duration',
+                      subtitle: 'Try to keep speeches within target duration',
+                      icon: Icons.timer,
+                      color: AppColors.error,
+                      percentage: 45,
+                    ),
+                    const Divider(height: 24),
+                    _buildImprovementItem(
+                      title: 'Pronunciation',
+                      subtitle: 'Overall pronunciation clarity is improving',
+                      icon: Icons.record_voice_over,
+                      color: AppColors.success,
+                      percentage: 82,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-    );
-  }
+      );
+    },
+  );
+}
 
   Widget _buildYearlyView() {
     return SingleChildScrollView(
@@ -839,7 +861,7 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
     final recordedAt = speech['recorded_at'];
     DateTime? recordedDate;
 
-    // Check the type of recorded_at and convert it to DateTime
+    // Handle recorded_at as a string or Timestamp
     if (recordedAt is Timestamp) {
       recordedDate = recordedAt.toDate();
     } else if (recordedAt is String) {
@@ -851,7 +873,7 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
           recordedDate = DateTime.parse(recordedAt);
         } catch (e) {
           print('Error parsing recorded_at: $e');
-          continue; // Skip this speech if parsing fails
+          continue; // Skip invalid dates
         }
       }
     }
@@ -883,38 +905,58 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
   return weeklyAverages;
 }
 
-  Map<int, double> _processMonthlyData(List<Map<String, dynamic>> speeches) {
-    final now = DateTime.now();
-    final firstDayOfMonth = DateTime(now.year, now.month, 1);
+  Map<String, double> _processMonthlyData(List<Map<String, dynamic>> speeches) {
+  final now = DateTime.now();
+  final startOfMonth = DateTime(now.year, now.month, 1);
 
-    // Initialize a map to store scores for each week
-    final Map<int, List<double>> weeklyScores = {};
+  // Initialize a map to store scores for each week
+  final Map<int, List<double>> weeklyScores = {};
 
-    for (var speech in speeches) {
-      final recordedAt = (speech['recorded_at'] as Timestamp?)?.toDate();
-      if (recordedAt != null && recordedAt.isAfter(firstDayOfMonth)) {
-        final weekOfMonth = ((recordedAt.day - 1) ~/ 7) + 1; // Calculate week of the month
-        final score = speech['proficiency_score'] as double? ?? 0.0;
+  for (var speech in speeches) {
+    final recordedAt = speech['recorded_at'];
+    DateTime? recordedDate;
 
-        if (!weeklyScores.containsKey(weekOfMonth)) {
-          weeklyScores[weekOfMonth] = [];
+    // Handle recorded_at as a string or Timestamp
+    if (recordedAt is Timestamp) {
+      recordedDate = recordedAt.toDate();
+    } else if (recordedAt is String) {
+      if (recordedAt == "firestore.SERVER_TIMESTAMP") {
+        // Assign a fallback value (e.g., current date and time)
+        recordedDate = now;
+      } else {
+        try {
+          recordedDate = DateTime.parse(recordedAt);
+        } catch (e) {
+          print('Error parsing recorded_at: $e');
+          continue; // Skip invalid dates
         }
-        weeklyScores[weekOfMonth]!.add(score);
       }
     }
 
-    // Calculate average score for each week
-    final Map<int, double> monthlyAverages = {};
-    for (var entry in weeklyScores.entries) {
-      final weekOfMonth = entry.key;
-      final scores = entry.value;
-      final averageScore = scores.reduce((a, b) => a + b) / scores.length;
+    if (recordedDate != null && recordedDate.isAfter(startOfMonth)) {
+      final weekOfMonth = ((recordedDate.day - 1) ~/ 7) + 1; // Calculate week of the month
+      final score = speech['proficiency_score'] as double? ?? 0.0;
 
-      monthlyAverages[weekOfMonth] = averageScore;
+      if (!weeklyScores.containsKey(weekOfMonth)) {
+        weeklyScores[weekOfMonth] = [];
+      }
+      weeklyScores[weekOfMonth]!.add(score);
     }
-
-    return monthlyAverages;
   }
+
+  // Calculate average score for each week
+  final Map<String, double> monthlyAverages = {};
+  for (var entry in weeklyScores.entries) {
+    final weekOfMonth = entry.key;
+    final scores = entry.value;
+    final averageScore = scores.reduce((a, b) => a + b) / scores.length;
+
+    monthlyAverages['Week $weekOfMonth'] = averageScore;
+  }
+
+  print('Processed monthly data: $monthlyAverages'); // Debug log
+  return monthlyAverages;
+}
 
   Map<int, double> _processYearlyData(List<Map<String, dynamic>> speeches) {
     final now = DateTime.now();
@@ -952,6 +994,71 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
   LineChartData _generateWeeklyScoreData(Map<String, double> weeklyData) {
   print('Weekly data for graph: $weeklyData'); // Debug log
 
+  if (weeklyData.isEmpty) {
+    // Handle empty data by showing a placeholder graph with axes
+    return LineChartData(
+      gridData: FlGridData(show: true),
+      titlesData: FlTitlesData(
+        bottomTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            getTitlesWidget: (value, meta) {
+              const style = TextStyle(color: AppColors.lightText, fontSize: 12);
+              String text = '';
+              switch (value.toInt()) {
+                case 0:
+                  text = 'Mon';
+                  break;
+                case 1:
+                  text = 'Tue';
+                  break;
+                case 2:
+                  text = 'Wed';
+                  break;
+                case 3:
+                  text = 'Thu';
+                  break;
+                case 4:
+                  text = 'Fri';
+                  break;
+                case 5:
+                  text = 'Sat';
+                  break;
+                case 6:
+                  text = 'Sun';
+                  break;
+                default:
+                  text = '';
+              }
+              return Text(text, style: style);
+            },
+          ),
+        ),
+        leftTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            interval: 20,
+            getTitlesWidget: (value, meta) {
+              return Text(
+                value.toInt().toString(),
+                style: const TextStyle(color: AppColors.lightText, fontSize: 12),
+              );
+            },
+          ),
+        ),
+      ),
+      borderData: FlBorderData(
+        show: true,
+        border: Border.all(color: Colors.grey.shade300, width: 1),
+      ),
+      minX: 0,
+      maxX: 6,
+      minY: 0,
+      maxY: 100,
+      lineBarsData: [],
+    );
+  }
+
   final spots = weeklyData.entries
       .map((entry) => FlSpot(
             ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -965,31 +1072,25 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
     gridData: FlGridData(
       show: true,
       drawVerticalLine: true,
-      horizontalInterval: 20, // Grid lines every 20 units
-      verticalInterval: 1, // Grid lines every 1 unit on X-axis
+      horizontalInterval: 20,
+      verticalInterval: 1,
       getDrawingHorizontalLine: (value) {
         return FlLine(
-          color: Colors.grey.shade300.withOpacity(0.5), // Lighter gray
-          strokeWidth: 0.8, // Thinner lines
+          color: Colors.grey.shade300.withOpacity(0.5),
+          strokeWidth: 0.8,
         );
       },
       getDrawingVerticalLine: (value) {
         return FlLine(
-          color: Colors.grey.shade300.withOpacity(0.5), // Lighter gray
-          strokeWidth: 0.8, // Thinner lines
+          color: Colors.grey.shade300.withOpacity(0.5),
+          strokeWidth: 0.8,
         );
       },
     ),
     titlesData: FlTitlesData(
-      show: true,
-      rightTitles: const AxisTitles(
-        sideTitles: SideTitles(showTitles: false),
-      ),
-      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
       bottomTitles: AxisTitles(
         sideTitles: SideTitles(
           showTitles: true,
-          interval: 1, // Ensure labels are only shown for integer values
           getTitlesWidget: (value, meta) {
             const style = TextStyle(color: AppColors.lightText, fontSize: 12);
             String text = '';
@@ -1025,20 +1126,12 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
       leftTitles: AxisTitles(
         sideTitles: SideTitles(
           showTitles: true,
-          interval: 20, // Only show labels for multiples of 20
-          reservedSize: 30,
+          interval: 20,
           getTitlesWidget: (value, meta) {
-            // Only show labels for multiples of 20
-            if (value % 20 == 0) {
-              return Text(
-                value.toInt().toString(),
-                style: const TextStyle(
-                  color: AppColors.lightText,
-                  fontSize: 12,
-                ),
-              );
-            }
-            return const SizedBox.shrink(); // Hide other labels
+            return Text(
+              value.toInt().toString(),
+              style: const TextStyle(color: AppColors.lightText, fontSize: 12),
+            );
           },
         ),
       ),
@@ -1075,29 +1168,312 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
         ),
       ),
     ],
-    lineTouchData: LineTouchData(
-      touchTooltipData: LineTouchTooltipData(
-        tooltipBgColor: Colors.white,
-        tooltipRoundedRadius: 8,
-        getTooltipItems: (touchedSpots) {
-          return touchedSpots.map((spot) {
-            final day = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][spot.x.toInt()];
-            return LineTooltipItem(
-              '$day\nScore: ${spot.y.toStringAsFixed(1)}',
-              const TextStyle(
-                color: AppColors.primaryBlue,
-                fontWeight: FontWeight.bold,
-              ),
-            );
-          }).toList();
-        },
-      ),
-      handleBuiltInTouches: true,
-    ),
   );
 }
 
+  LineChartData _generateMonthlyScoreData(Map<String, double> monthlyData) {
+  print('Monthly data for graph: $monthlyData'); // Debug log
+
+  if (monthlyData.isEmpty) {
+    // Handle empty data by showing a placeholder graph with axes
+    return LineChartData(
+      gridData: FlGridData(show: true),
+      titlesData: FlTitlesData(
+        bottomTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            getTitlesWidget: (value, meta) {
+              const style = TextStyle(color: AppColors.lightText, fontSize: 12);
+              String text = '';
+              switch (value.toInt()) {
+                case 0:
+                  text = 'Week 1';
+                  break;
+                case 1:
+                  text = 'Week 2';
+                  break;
+                case 2:
+                  text = 'Week 3';
+                  break;
+                case 3:
+                  text = 'Week 4';
+                  break;
+                default:
+                  text = '';
+              }
+              return Text(text, style: style);
+            },
+          ),
+        ),
+        leftTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            interval: 20,
+            getTitlesWidget: (value, meta) {
+              return Text(
+                value.toInt().toString(),
+                style: const TextStyle(color: AppColors.lightText, fontSize: 12),
+              );
+            },
+          ),
+        ),
+      ),
+      borderData: FlBorderData(
+        show: true,
+        border: Border.all(color: Colors.grey.shade300, width: 1),
+      ),
+      minX: 0,
+      maxX: 3,
+      minY: 0,
+      maxY: 100,
+      lineBarsData: [],
+    );
+  }
+
+  final spots = monthlyData.entries
+      .map((entry) => FlSpot(
+            double.parse(entry.key.split(' ')[1]) - 1,
+            entry.value,
+          ))
+      .toList();
+
+  return LineChartData(
+    gridData: FlGridData(
+      show: true,
+      drawVerticalLine: true,
+      horizontalInterval: 20,
+      verticalInterval: 1,
+      getDrawingHorizontalLine: (value) {
+        return FlLine(
+          color: Colors.grey.shade300.withOpacity(0.5),
+          strokeWidth: 0.8,
+        );
+      },
+      getDrawingVerticalLine: (value) {
+        return FlLine(
+          color: Colors.grey.shade300.withOpacity(0.5),
+          strokeWidth: 0.8,
+        );
+      },
+    ),
+    titlesData: FlTitlesData(
+      bottomTitles: AxisTitles(
+        sideTitles: SideTitles(
+          showTitles: true,
+          getTitlesWidget: (value, meta) {
+            const style = TextStyle(color: AppColors.lightText, fontSize: 12);
+            String text = '';
+            switch (value.toInt()) {
+              case 0:
+                text = 'Week 1';
+                break;
+              case 1:
+                text = 'Week 2';
+                break;
+              case 2:
+                text = 'Week 3';
+                break;
+              case 3:
+                text = 'Week 4';
+                break;
+              default:
+                text = '';
+              }
+              return Text(text, style: style);
+            },
+          ),
+        ),
+      leftTitles: AxisTitles(
+        sideTitles: SideTitles(
+          showTitles: true,
+          interval: 20,
+          getTitlesWidget: (value, meta) {
+            return Text(
+              value.toInt().toString(),
+              style: const TextStyle(color: AppColors.lightText, fontSize: 12),
+            );
+          },
+        ),
+      ),
+    ),
+    borderData: FlBorderData(
+      show: true,
+      border: Border.all(color: Colors.grey.shade300, width: 1),
+    ),
+    minX: 0,
+    maxX: 3,
+    minY: 0,
+    maxY: 100,
+    lineBarsData: [
+      LineChartBarData(
+        spots: spots,
+        isCurved: true,
+        color: AppColors.primaryBlue,
+        barWidth: 3,
+        isStrokeCapRound: true,
+        dotData: FlDotData(
+          show: true,
+          getDotPainter: (spot, percent, barData, index) {
+            return FlDotCirclePainter(
+              radius: 4,
+              color: AppColors.primaryBlue,
+              strokeWidth: 2,
+              strokeColor: Colors.white,
+            );
+          },
+        ),
+        belowBarData: BarAreaData(
+          show: true,
+          color: AppColors.primaryBlue.withOpacity(0.2),
+        ),
+      ),
+    ],
+  );
+}
+
+  LineChartData _generateYearlyScoreData(Map<int, double> yearlyData) {
+    final spots = yearlyData.entries
+        .map((entry) => FlSpot(entry.key.toDouble() - 1, entry.value))
+        .toList();
+
+    return LineChartData(
+      gridData: FlGridData(
+        show: true,
+        drawVerticalLine: true,
+        horizontalInterval: 10,
+        verticalInterval: 1,
+        getDrawingHorizontalLine: (value) {
+          return FlLine(
+            color: Colors.grey.shade300.withOpacity(0.5),
+            strokeWidth: 0.8,
+          );
+        },
+        getDrawingVerticalLine: (value) {
+          return FlLine(
+            color: Colors.grey.shade300.withOpacity(0.5),
+            strokeWidth: 0.8,
+          );
+        },
+      ),
+      titlesData: FlTitlesData(
+        show: true,
+        bottomTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            getTitlesWidget: (value, meta) {
+              const style = TextStyle(color: AppColors.lightText, fontSize: 12);
+              String text = '';
+              switch (value.toInt()) {
+                case 0:
+                  text = 'Jan';
+                  break;
+                case 1:
+                  text = 'Feb';
+                  break;
+                case 2:
+                  text = 'Mar';
+                  break;
+                case 3:
+                  text = 'Apr';
+                  break;
+                case 4:
+                  text = 'May';
+                  break;
+                case 5:
+                  text = 'Jun';
+                  break;
+                case 6:
+                  text = 'Jul';
+                  break;
+                case 7:
+                  text = 'Aug';
+                  break;
+                case 8:
+                  text = 'Sep';
+                  break;
+                case 9:
+                  text = 'Oct';
+                  break;
+                case 10:
+                  text = 'Nov';
+                  break;
+                case 11:
+                  text = 'Dec';
+                  break;
+                default:
+                  text = '';
+              }
+              return Text(text, style: style);
+            },
+          ),
+        ),
+        leftTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            interval: 10,
+            getTitlesWidget: (value, meta) {
+              if (value % 10 == 0) {
+                return Text(
+                  value.toInt().toString(),
+                  style: const TextStyle(color: AppColors.lightText, fontSize: 12),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      ),
+      borderData: FlBorderData(
+        show: true,
+        border: Border.all(color: Colors.grey.shade300, width: 1),
+      ),
+      minX: 0,
+      maxX: 11,
+      minY: 0,
+      maxY: 100,
+      lineBarsData: [
+        LineChartBarData(
+          spots: spots,
+          isCurved: true,
+          color: AppColors.primaryBlue,
+          barWidth: 3,
+          isStrokeCapRound: true,
+          dotData: FlDotData(
+            show: true,
+            getDotPainter: (spot, percent, barData, index) {
+              return FlDotCirclePainter(
+                radius: 4,
+                color: AppColors.primaryBlue,
+                strokeWidth: 2,
+                strokeColor: Colors.white,
+              );
+            },
+          ),
+          belowBarData: BarAreaData(
+            show: true,
+            color: AppColors.primaryBlue.withOpacity(0.2),
+          ),
+        ),
+      ],
+    );
+  }
+
   Stream<List<Map<String, dynamic>>> _streamSpeechData() {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) {
+    return const Stream.empty();
+  }
+
+  return FirebaseFirestore.instance
+      .collection('users')
+      .doc(user.uid)
+      .collection('speeches')
+      .snapshots()
+      .map((snapshot) =>
+          snapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList());
+}
+
+Stream<List<Map<String, dynamic>>> _streamMonthlySpeechData() {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) {
     return const Stream.empty();
