@@ -1,18 +1,21 @@
 from fastapi import FastAPI, HTTPException, Depends, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel  # Add this import
+from pydantic import BaseModel
 import os
 from models.transcript import transcribe_audio, process_transcription
 from models.filler_word_detection import analyze_filler_words, analyze_mid_sentence_pauses
 from models.proficiency_evaluation import calculate_proficiency_score
 from models.voice_modulation import analyze_voice_modulation
-from models.speech_development import evaluate_speech_development  # Add this line
-from models.user import User, SessionLocal, engine
-from sqlalchemy.orm import Session
+from models.speech_development import evaluate_speech_development
 from passlib.context import CryptContext
 import whisper
 import logging
 from nltk_download import download_nltk_resources  # Import the utility function
+from firebase_config import db
+from firebase_admin import firestore
+from firebase_admin import storage
+import json
+from fastapi.encoders import jsonable_encoder
 from models.speech_effectiveness import evaluate_speech_effectiveness  # Add this import
 from models.vocabulary_evaluation import evaluate_speech  # Add this import
 
@@ -42,14 +45,6 @@ model = whisper.load_model("base")
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Dependency to get DB session
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
 # Pydantic models
 class UserCreate(BaseModel):
     name: str
@@ -62,24 +57,31 @@ class UserLogin(BaseModel):
 
 # Create user endpoint
 @app.post("/register/")
-async def register_user(user: UserCreate, db: Session = Depends(get_db)):
-    db_user = db.query(User).filter(User.email == user.email).first()
-    if db_user:
+async def register_user(user: UserCreate):
+    users_ref = db.collection("users")
+    existing_user = users_ref.where("email", "==", user.email).get()
+    if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
-    hashed_password = pwd_context.hash(user.password)
-    db_user = User(name=user.name, email=user.email, hashed_password=hashed_password)
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
+
+    new_user = {
+        "name": user.name,
+        "email": user.email,
+        "createdAt": firestore.SERVER_TIMESTAMP,
+    }
+    users_ref.add(new_user)
+
+    return {"message": "User registered successfully"}
 
 # Login user endpoint
 @app.post("/login/")
-async def login_user(user: UserLogin, db: Session = Depends(get_db)):
-    db_user = db.query(User).filter(User.email == user.email).first()
-    if not db_user or not pwd_context.verify(user.password, db_user.hashed_password):
+async def login_user(user: UserLogin):
+    users_ref = db.collection("users")
+    user_docs = users_ref.where("email", "==", user.email).get()
+    if not user_docs:
         raise HTTPException(status_code=400, detail="Invalid credentials")
-    return {"message": "Login successful", "name": db_user.name}
+
+    user_data = user_docs[0].to_dict()
+    return {"message": "Login successful", "name": user_data["name"]}
 
 def generate_timing_feedback(actual_duration_str, expected_duration, speech_type):
     """Generate feedback about timing compliance based on actual vs expected duration"""
@@ -148,12 +150,31 @@ async def upload_file(file: UploadFile = File(...),
                       topic: str = Form(None),  # Topic received here
                       speech_type: str = Form(None), 
                       expected_duration: str = Form(None), 
-                      actual_duration: str = Form(None)):
+                      actual_duration: str = Form(None), 
+                      user_id: str = Form(...)):
+    logging.info(f"Received file: {file.filename}")
+    logging.info(f"Topic: {topic}, Speech Type: {speech_type}, Expected Duration: {expected_duration}, Actual Duration: {actual_duration}, User ID: {user_id}")
+    
+    if not topic or not speech_type or not expected_duration or not actual_duration or not user_id:
+        raise HTTPException(status_code=422, detail="Missing required fields")
+    
     file_location = os.path.join(UPLOAD_DIR, file.filename)
     with open(file_location, "wb") as f:
         f.write(await file.read())
     logging.info(f"Received file: {file.filename}")
-    logging.info(f"Speech details - Topic: {topic}, Type: {speech_type}, Expected duration: {expected_duration}, Actual duration: {actual_duration}")
+
+    # Upload the file to Firebase Storage
+    try:
+        bucket = storage.bucket()  # Get the default Firebase Storage bucket
+        blob = bucket.blob(f"audio/{user_id}/{file.filename}")  # Create a unique path for the file
+        file.file.seek(0)  # Reset the file stream to the beginning
+        blob.upload_from_file(file.file)  # Upload the file directly from the request
+        blob.make_public()  # Make the file publicly accessible
+        audio_url = blob.public_url  # Get the public URL of the file
+        logging.info(f"File uploaded to Firebase Storage: {audio_url}")
+    except Exception as e:
+        logging.error(f"Error uploading file to Firebase Storage: {e}")
+        raise HTTPException(status_code=500, detail="Failed to upload file to Firebase Storage")
 
     # Transcribe the audio file
     result = transcribe_audio(model, file_location)
@@ -251,52 +272,25 @@ async def upload_file(file: UploadFile = File(...),
     if speech_type == "Prepared Speech":
         speech_type_feedback = "Prepared speeches should be well-structured with clear introduction, body, and conclusion."
     elif speech_type == "Impromptu Speech":
-        speech_type_feedback = "Impromptu speeches show your ability to think quickly and organize thoughts on the spot."
-    elif speech_type == "Table Topics":
-        speech_type_feedback = "Table Topics are meant to be short and concise responses to unexpected questions."
+        speech_type_feedback = "Impromptu speeches show your ability to think quickly and should be coherent and relevant."
     else:
-        speech_type_feedback = "Focus on clarity, structure, and engaging delivery in your speech."
-
-    # Return response with all evaluations
-    return {
-        "filename": file.filename,
+        speech_type_feedback = "Speech type feedback is unavailable."
+    
+    # Combine final response
+    response = {
         "transcription": transcription,
         "pause_duration": pause_duration,
+        "filler_analysis": filler_analysis,
         "pause_analysis": pause_analysis,
-        "filler_word_analysis": filler_analysis,
-        "proficiency_scores": proficiency_scores,  # This now contains the complete proficiency data
-        "speech_effectiveness": {
-            "total_score": speech_effectiveness['total_score'],
-            "relevance_score": speech_effectiveness['relevance_score'],
-            "purpose_score": speech_effectiveness['purpose_score'],
-            "details": speech_effectiveness['details'],
-            "feedback": speech_effectiveness.get('feedback', [])
-        },
+        "proficiency_scores": proficiency_scores,
         "modulation_analysis": modulation_analysis,
-        "speech_development": speech_development,  # Add this line
+        "speech_development": speech_development,
+        "speech_effectiveness": speech_effectiveness,
         "vocabulary_evaluation": vocabulary_evaluation,
-        "speech_details": {
-            "topic": topic,
-            "speech_type": speech_type,
-            "expected_duration": expected_duration,
-            "actual_duration": actual_duration
-        },
-        "enhanced_analysis": {
-            "timing_compliance": timing_feedback,
-            "speech_type_feedback": speech_type_feedback,
-            "topic_relevance": {
-                "score": speech_effectiveness.get('relevance_score', 7) * 10,  # Scale to 0-100
-                "feedback": f"Your speech on '{topic}' was analyzed for content and delivery quality."
-            },
-            "recommendations": [
-                f"Practice keeping your {speech_type.lower()} within the {expected_duration} timeframe.",
-                "Focus on reducing filler words to sound more confident.",
-                "Use pauses strategically rather than mid-sentence."
-            ] + (speech_development.get("structure", {}).get("feedback", []) if speech_development else [])
-        }
+        "timing_feedback": timing_feedback,
+        "speech_type_feedback": speech_type_feedback,
+        "audio_url": audio_url
     }
-
-if __name__ == "__main__":
-    import uvicorn
-    logging.basicConfig(level=logging.INFO)
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    
+    # Convert to JSON-compatible response
+    return JSONResponse(content=jsonable_encoder(response))
