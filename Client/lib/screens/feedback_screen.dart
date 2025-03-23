@@ -218,22 +218,66 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
   List<SpeechSuggestion> _getLowestScoringSuggestions() {
     if (_apiResponse == null) return [];
 
+    // Create a list of all sub-metrics with their scores
     List<SpeechSuggestion> allScores = [
+      // Speech Development sub-metrics
       SpeechSuggestion(
         category: 'structure',
         suggestion: SpeechSuggestions.suggestionMap['structure']!,
-        score: _apiResponse!['speech_development']?['structure']?['score']?.toDouble() ?? 10.0,
+        score: (_apiResponse!['speech_development']?['structure']?['score'] ?? 10.0).toDouble(),
       ),
       SpeechSuggestion(
         category: 'timeUtilization',
         suggestion: SpeechSuggestions.suggestionMap['timeUtilization']!,
-        score: _apiResponse!['speech_development']?['time_utilization']?['score']?.toDouble() ?? 10.0,
+        score: (_apiResponse!['speech_development']?['time_utilization']?['score'] ?? 10.0).toDouble(),
       ),
-      // Add other categories similarly
-      // ...
+      // Vocabulary sub-metrics
+      SpeechSuggestion(
+        category: 'grammarWordSelection',
+        suggestion: SpeechSuggestions.suggestionMap['grammarWordSelection']!,
+        score: (_apiResponse!['vocabulary_evaluation']?['grammar_word_selection']?['score'] ?? 10.0).toDouble(),
+      ),
+      SpeechSuggestion(
+        category: 'pronunciation',
+        suggestion: SpeechSuggestions.suggestionMap['pronunciation']!,
+        score: (_apiResponse!['vocabulary_evaluation']?['pronunciation']?['score'] ?? 10.0).toDouble(),
+      ),
+      // Effectiveness sub-metrics
+      SpeechSuggestion(
+        category: 'clearPurpose',
+        suggestion: SpeechSuggestions.suggestionMap['clearPurpose']!,
+        score: (_apiResponse!['speech_effectiveness']?['relevance_score'] ?? 10.0).toDouble(),
+      ),
+      SpeechSuggestion(
+        category: 'achievement',
+        suggestion: SpeechSuggestions.suggestionMap['achievement']!,
+        score: (_apiResponse!['speech_effectiveness']?['purpose_score'] ?? 10.0).toDouble(),
+      ),
+      // Voice Analysis sub-metrics
+      SpeechSuggestion(
+        category: 'pitchVolume',
+        suggestion: SpeechSuggestions.suggestionMap['pitchVolume']!,
+        score: (_apiResponse!['modulation_analysis']?['scores']?['pitch_and_volume_score'] ?? 10.0).toDouble(),
+      ),
+      SpeechSuggestion(
+        category: 'emphasis',
+        suggestion: SpeechSuggestions.suggestionMap['emphasis']!,
+        score: (_apiResponse!['modulation_analysis']?['scores']?['emphasis_score'] ?? 10.0).toDouble(),
+      ),
+      // Proficiency sub-metrics
+      SpeechSuggestion(
+        category: 'pause',
+        suggestion: SpeechSuggestions.suggestionMap['pause']!,
+        score: (_apiResponse!['proficiency_scores']?['pause_score'] ?? 10.0).toDouble(),
+      ),
+      SpeechSuggestion(
+        category: 'filler',
+        suggestion: SpeechSuggestions.suggestionMap['filler']!,
+        score: (_apiResponse!['proficiency_scores']?['filler_score'] ?? 10.0).toDouble(),
+      ),
     ];
 
-    // Sort by score and get lowest 3
+    // Sort by score (ascending) and get the lowest 3
     allScores.sort((a, b) => a.score.compareTo(b.score));
     return allScores.take(3).toList();
   }
@@ -751,22 +795,29 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
   double _calculateOverallScore() {
     if (_apiResponse == null) return 0.0;
     
-    final proficiencyData = _apiResponse!['proficiency_scores'] ?? {};
-    final modulation = _apiResponse!['modulation_analysis']?['scores'] ?? {};
-    final effectivenessData = _apiResponse!['speech_effectiveness'] ?? {};
+    // Extract scores from API response using the same paths as advanced analysis
     final speechDevelopment = _apiResponse!['speech_development'] ?? {};
     final vocabularyData = _apiResponse!['vocabulary_evaluation'] ?? {};
+    final effectivenessData = _apiResponse!['speech_effectiveness'] ?? {};
+    final modulation = _apiResponse!['modulation_analysis']?['scores'] ?? {};
+    final proficiencyData = _apiResponse!['proficiency_scores'] ?? {};
     
-    // Get individual scores
+    // Calculate scores consistently with advanced analysis screen
     double developmentScore = ((speechDevelopment['structure']?['score'] ?? 0.0) + 
                              (speechDevelopment['time_utilization']?['score'] ?? 0.0)).toDouble();
-    
     double vocabularyScore = (vocabularyData['vocabulary_score'] ?? 0.0).toDouble();
     double effectivenessScore = (effectivenessData['total_score'] ?? 0.0).toDouble();
     double modulationScore = (modulation['total_score'] ?? 0.0).toDouble();
     double finalScore = (proficiencyData['final_score'] ?? 0.0).toDouble();
     
-    // Sum all scores (each is out of 20, total out of 100)
+    // Print debug information
+    print('Development Score: $developmentScore');
+    print('Vocabulary Score: $vocabularyScore');
+    print('Effectiveness Score: $effectivenessScore');
+    print('Modulation Score: $modulationScore');
+    print('Final Score: $finalScore');
+    
+    // Calculate total score
     return developmentScore + vocabularyScore + effectivenessScore + modulationScore + finalScore;
   }
 }

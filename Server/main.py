@@ -236,13 +236,22 @@ async def upload_file(file: UploadFile = File(...),
         
         # Store results in Firestore
         try:
+            # Extract scores correctly from individual analysis results
+            speech_development_score = (speech_development.get("structure", {}).get("score", 0) + 
+                                     speech_development.get("time_utilization", {}).get("score", 0))
+            
+            vocabulary_score = vocabulary_evaluation.get("vocabulary_score", 0)
+            effectiveness_score = speech_effectiveness.get("total_score", 0)
+            voice_analysis_score = modulation_analysis["scores"].get("total_score", 0)
+            proficiency_score = proficiency_scores.get("final_score", 0)
+
             speech_data = {
-                # Core metrics
-                "speech_development_score": speech_development.get("development_score", 0),
-                "vocabulary_evaluation_score": proficiency_scores.get("vocabulary_score", 0),
-                "effectiveness_score": proficiency_scores.get("effectiveness_score", 0),
-                "voice_analysis_score": modulation_analysis["scores"].get("total_score", 0),
-                "proficiency_score": proficiency_scores.get("final_score", 0),
+                # Core metrics - ensure all scores are out of 20
+                "speech_development_score": speech_development_score,
+                "vocabulary_evaluation_score": vocabulary_score,
+                "effectiveness_score": effectiveness_score,
+                "voice_analysis_score": voice_analysis_score,
+                "proficiency_score": proficiency_score,
                 
                 # Basic info
                 "topic": topic,
@@ -251,18 +260,6 @@ async def upload_file(file: UploadFile = File(...),
                 "actual_duration": actual_duration,
                 "audio_url": audio_url,
                 "transcription": transcription,
-                
-                # Detailed analysis
-                "pause_duration": pause_duration,
-                "filler_analysis": filler_analysis,
-                "pause_analysis": pause_analysis,
-                "proficiency_scores": proficiency_scores,
-                "modulation_analysis": modulation_analysis,
-                "speech_development": speech_development,
-                "speech_effectiveness": speech_effectiveness,
-                "vocabulary_evaluation": vocabulary_evaluation,
-                "timing_feedback": timing_feedback,
-                "speech_type_feedback": speech_type_feedback,
                 
                 # Metadata
                 "user_id": user_id,
