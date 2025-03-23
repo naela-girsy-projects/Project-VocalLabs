@@ -245,6 +245,13 @@ async def upload_file(file: UploadFile = File(...),
             voice_analysis_score = modulation_analysis["scores"].get("total_score", 0)
             proficiency_score = proficiency_scores.get("final_score", 0)
 
+            # Calculate overall score (sum of all main scores)
+            overall_score = (speech_development_score + 
+                           vocabulary_score + 
+                           effectiveness_score + 
+                           voice_analysis_score + 
+                           proficiency_score)
+
             speech_data = {
                 # Core metrics - ensure all scores are out of 20
                 "speech_development_score": speech_development_score,
@@ -252,6 +259,7 @@ async def upload_file(file: UploadFile = File(...),
                 "effectiveness_score": effectiveness_score,
                 "voice_analysis_score": voice_analysis_score,
                 "proficiency_score": proficiency_score,
+                "overall_score": overall_score,  # Add the overall score
                 
                 # Basic info
                 "topic": topic,
