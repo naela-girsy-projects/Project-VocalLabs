@@ -246,7 +246,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('Suggestions', style: AppTextStyles.heading2),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12), // Reduced from 16 to 12
         ...suggestions.map((suggestion) {
           Color cardColor;
           if (suggestion.score < 4) {
@@ -258,23 +258,31 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
           }
 
           return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.only(bottom: 8), // Reduced from 12 to 8
             child: CardLayout(
               backgroundColor: cardColor,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), // Modified padding
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start, // Added for better text alignment
                 children: [
-                  Icon(
-                    Icons.lightbulb_outline,
-                    color: suggestion.score < 4 ? AppColors.error : 
-                           suggestion.score < 7 ? AppColors.warning : 
-                           AppColors.success,
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2), // Added to align icon with text
+                    child: Icon(
+                      Icons.lightbulb_outline,
+                      color: suggestion.score < 4 ? AppColors.error : 
+                             suggestion.score < 7 ? AppColors.warning : 
+                             AppColors.success,
+                      size: 20, // Slightly reduced from default
+                    ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12), // Reduced from 16 to 12
                   Expanded(
                     child: Text(
                       suggestion.suggestion,
-                      style: AppTextStyles.body1,
+                      style: AppTextStyles.body1.copyWith(
+                        fontSize: 14, // Slightly reduced font size
+                        height: 1.4, // Added line height for better readability
+                      ),
                     ),
                   ),
                 ],
