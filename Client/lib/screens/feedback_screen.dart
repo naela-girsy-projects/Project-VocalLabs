@@ -376,9 +376,9 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                             ],
                           ),
                           const SizedBox(height: 16),
-                          const Text(
-                            '82',
-                            style: TextStyle(
+                          Text(
+                            '${_calculateOverallScore().round()}',
+                            style: const TextStyle(
                               fontSize: 64,
                               fontWeight: FontWeight.bold,
                               color: AppColors.primaryBlue,
@@ -721,6 +721,27 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
       ),
     );
   }
-}
 
-//feedback doc
+  // Add this method to calculate overall score
+  double _calculateOverallScore() {
+    if (_apiResponse == null) return 0.0;
+    
+    final proficiencyData = _apiResponse!['proficiency_scores'] ?? {};
+    final modulation = _apiResponse!['modulation_analysis']?['scores'] ?? {};
+    final effectivenessData = _apiResponse!['speech_effectiveness'] ?? {};
+    final speechDevelopment = _apiResponse!['speech_development'] ?? {};
+    final vocabularyData = _apiResponse!['vocabulary_evaluation'] ?? {};
+    
+    // Get individual scores
+    double developmentScore = ((speechDevelopment['structure']?['score'] ?? 0.0) + 
+                             (speechDevelopment['time_utilization']?['score'] ?? 0.0)).toDouble();
+    
+    double vocabularyScore = (vocabularyData['vocabulary_score'] ?? 0.0).toDouble();
+    double effectivenessScore = (effectivenessData['total_score'] ?? 0.0).toDouble();
+    double modulationScore = (modulation['total_score'] ?? 0.0).toDouble();
+    double finalScore = (proficiencyData['final_score'] ?? 0.0).toDouble();
+    
+    // Sum all scores (each is out of 20, total out of 100)
+    return developmentScore + vocabularyScore + effectivenessScore + modulationScore + finalScore;
+  }
+}

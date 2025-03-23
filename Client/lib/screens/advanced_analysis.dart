@@ -46,6 +46,9 @@ class _AdvancedAnalysisScreenState extends State<AdvancedAnalysisScreen> {
   void initState() {
     super.initState();
     _initializeScores();
+    
+    // Add debug print for overall score
+    print('Overall Score: ${calculateOverallScore()}');
   }
 
   void _initializeScores() {
@@ -127,6 +130,12 @@ class _AdvancedAnalysisScreenState extends State<AdvancedAnalysisScreen> {
     print('Effectiveness - Total: $effectivenessScore, Clear: $clearPurposeScore, Achievement: $achievementScore');
     print('Development - Total: $developmentScore, Structure: $structureScore, Time: $timeUtilizationScore');
     print('Vocabulary - Total: $vocabularyScore, Grammar: $grammarWordSelectionScore, Pronunciation: $pronunciationScore');
+  }
+
+  // Add this method to calculate overall score
+  double calculateOverallScore() {
+    // Each score is out of 20, so summing them up gives a score out of 100
+    return developmentScore + vocabularyScore + effectivenessScore + modulationScore + finalScore;
   }
 
   @override
