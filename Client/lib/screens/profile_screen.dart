@@ -88,7 +88,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           final duration = _parseExpectedDuration(data['expected_duration']);
 
           return {
-            'score': data['proficiency_score'] ?? 0, // Match the actual field name
+            'score': data['overall_score'] ?? 0, // Use overall_score instead of proficiency_score
             'duration': duration,
           };
         }).toList();
