@@ -10,11 +10,10 @@ class ProgressDashboardScreen extends StatefulWidget {
   const ProgressDashboardScreen({super.key});
 
   @override
-  State<ProgressDashboardScreen> createState() =>
-      _ProgressDashboardScreenState();
+  State<ProgressDashboardScreen> createState() => _ProgressDashboardScreenState();
 }
 
-class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
+class _ProgressDashboardScreenState extends State<ProgressDashboardScreen> 
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
@@ -52,6 +51,7 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
       ),
     );
   }
+    }
 
   Widget _buildWeeklyView() {
     return StreamBuilder<List<Map<String, dynamic>>>(
@@ -189,139 +189,139 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
   }
 
   Widget _buildMonthlyView() {
-  return StreamBuilder<List<Map<String, dynamic>>>(
-    stream: _streamMonthlySpeechData(),
-    builder: (context, snapshot) {
-      if (snapshot.connectionState == ConnectionState.waiting) {
-        return const Center(child: CircularProgressIndicator());
-      }
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _streamMonthlySpeechData(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-      if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-        return const Center(child: Text('No data available for this month.'));
-      }
+        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(child: Text('No data available for this month.'));
+        }
 
-      // Debug log to verify fetched data
-      print('Fetched monthly speech data: ${snapshot.data}');
+        // Debug log to verify fetched data
+        print('Fetched monthly speech data: ${snapshot.data}');
 
-      // Process the monthly data
-      final monthlyData = _processMonthlyData(snapshot.data!);
+        // Process the monthly data
+        final monthlyData = _processMonthlyData(snapshot.data!);
 
-      // Calculate metrics
-      final totalSpeeches = snapshot.data!.length;
+        // Calculate metrics
+        final totalSpeeches = snapshot.data!.length;
 
-      // Calculate total duration in seconds
-      final totalDurationInSeconds = snapshot.data!
-          .map((speech) {
-            final duration = speech['actual_duration'] as String? ?? '0:00';
-            final parts = duration.split(':');
-            if (parts.length == 2) {
-              final minutes = int.tryParse(parts[0]) ?? 0;
-              final seconds = int.tryParse(parts[1]) ?? 0;
-              return minutes * 60 + seconds;
-            }
-            return 0;
-          })
-          .reduce((a, b) => a + b);
+        // Calculate total duration in seconds
+        final totalDurationInSeconds = snapshot.data!
+            .map((speech) {
+              final duration = speech['actual_duration'] as String? ?? '0:00';
+              final parts = duration.split(':');
+              if (parts.length == 2) {
+                final minutes = int.tryParse(parts[0]) ?? 0;
+                final seconds = int.tryParse(parts[1]) ?? 0;
+                return minutes * 60 + seconds;
+              }
+              return 0;
+            })
+            .reduce((a, b) => a + b);
 
-      // Calculate average duration
-      final avgDurationInSeconds =
-          totalSpeeches > 0 ? totalDurationInSeconds / totalSpeeches : 0;
-      final avgDurationMinutes = (avgDurationInSeconds ~/ 60).toString();
-      final avgDurationSeconds = (avgDurationInSeconds % 60).round().toString().padLeft(2, '0');
+        // Calculate average duration
+        final avgDurationInSeconds =
+            totalSpeeches > 0 ? totalDurationInSeconds / totalSpeeches : 0;
+        final avgDurationMinutes = (avgDurationInSeconds ~/ 60).toString();
+        final avgDurationSeconds = (avgDurationInSeconds % 60).round().toString().padLeft(2, '0');
 
-      return SingleChildScrollView(
-        child: Padding(
-          padding: AppPadding.screenPadding,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 20),
-              const Text(
-                'This Month\'s Performance',
-                style: AppTextStyles.heading2,
-              ),
-              const SizedBox(height: 20),
-              CardLayout(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        return SingleChildScrollView(
+          child: Padding(
+            padding: AppPadding.screenPadding,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 20),
+                const Text(
+                  'This Month\'s Performance',
+                  style: AppTextStyles.heading2,
+                ),
+                const SizedBox(height: 20),
+                CardLayout(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Overall Score Trend',
+                        style: AppTextStyles.body1.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        height: 200,
+                        child: LineChart(_generateMonthlyScoreData(monthlyData)),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text('Speech Metrics', style: AppTextStyles.heading2),
+                const SizedBox(height: 16),
+                Row(
                   children: [
-                    Text(
-                      'Overall Score Trend',
-                      style: AppTextStyles.body1.copyWith(
-                        fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: _buildMetricCard(
+                        title: 'Speeches',
+                        value: '$totalSpeeches',
+                        icon: Icons.mic,
+                        color: AppColors.primaryBlue,
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      height: 200,
-                      child: LineChart(_generateMonthlyScoreData(monthlyData)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildMetricCard(
+                        title: 'Avg. Duration',
+                        value: '$avgDurationMinutes:$avgDurationSeconds',
+                        icon: Icons.timer,
+                        color: AppColors.warning,
+                      ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 20),
-              const Text('Speech Metrics', style: AppTextStyles.heading2),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildMetricCard(
-                      title: 'Speeches',
-                      value: '$totalSpeeches',
-                      icon: Icons.mic,
-                      color: AppColors.primaryBlue,
-                    ),
+                const SizedBox(height: 20),
+                const Text('Areas for Improvement', style: AppTextStyles.heading2),
+                const SizedBox(height: 16),
+                CardLayout(
+                  child: Column(
+                    children: [
+                      _buildImprovementItem(
+                        title: 'Volume Consistency',
+                        subtitle: 'Work on maintaining consistent volume levels',
+                        icon: Icons.volume_up,
+                        color: AppColors.warning,
+                        percentage: 68,
+                      ),
+                      const Divider(height: 24),
+                      _buildImprovementItem(
+                        title: 'Speech Duration',
+                        subtitle: 'Try to keep speeches within target duration',
+                        icon: Icons.timer,
+                        color: AppColors.error,
+                        percentage: 45,
+                      ),
+                      const Divider(height: 24),
+                      _buildImprovementItem(
+                        title: 'Pronunciation',
+                        subtitle: 'Overall pronunciation clarity is improving',
+                        icon: Icons.record_voice_over,
+                        color: AppColors.success,
+                        percentage: 82,
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildMetricCard(
-                      title: 'Avg. Duration',
-                      value: '$avgDurationMinutes:$avgDurationSeconds',
-                      icon: Icons.timer,
-                      color: AppColors.warning,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              const Text('Areas for Improvement', style: AppTextStyles.heading2),
-              const SizedBox(height: 16),
-              CardLayout(
-                child: Column(
-                  children: [
-                    _buildImprovementItem(
-                      title: 'Volume Consistency',
-                      subtitle: 'Work on maintaining consistent volume levels',
-                      icon: Icons.volume_up,
-                      color: AppColors.warning,
-                      percentage: 68,
-                    ),
-                    const Divider(height: 24),
-                    _buildImprovementItem(
-                      title: 'Speech Duration',
-                      subtitle: 'Try to keep speeches within target duration',
-                      icon: Icons.timer,
-                      color: AppColors.error,
-                      percentage: 45,
-                    ),
-                    const Divider(height: 24),
-                    _buildImprovementItem(
-                      title: 'Pronunciation',
-                      subtitle: 'Overall pronunciation clarity is improving',
-                      icon: Icons.record_voice_over,
-                      color: AppColors.success,
-                      percentage: 82,
-                    ),
-                  ],
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      );
-    },
-  );
-}
+        );
+      },
+    );
+  }
 
   Widget _buildMetricCard({
     required String title,
@@ -870,140 +870,109 @@ Stream<List<Map<String, dynamic>>> _streamMonthlySpeechData() {
 }
 
 Map<String, double> _processWeeklyData(List<Map<String, dynamic>> data) {
-  final Map<String, double> weeklyData = {
-    'Mon': 0.0,
-    'Tue': 0.0,
-    'Wed': 0.0,
-    'Thu': 0.0,
-    'Fri': 0.0,
-    'Sat': 0.0,
-    'Sun': 0.0,
-  };
-
-  final Map<String, int> countData = {
-    'Mon': 0,
-    'Tue': 0,
-    'Wed': 0,
-    'Thu': 0,
-    'Fri': 0,
-    'Sat': 0,
-    'Sun': 0,
+  final Map<String, List<double>> weeklyScores = {
+    'Mon': [],
+    'Tue': [],
+    'Wed': [],
+    'Thu': [],
+    'Fri': [],
+    'Sat': [],
+    'Sun': [],
   };
 
   for (var speech in data) {
-    final dateField = speech['date'];
-    DateTime date;
+    final timestamp = speech['recorded_at'] as Timestamp?;
+    if (timestamp == null) continue;
 
-    if (dateField is Timestamp) {
-      date = dateField.toDate();
-    } else if (dateField is DateTime) {
-      date = dateField;
-    } else {
-      continue; // Skip if date is not a valid type
-    }
+    final date = timestamp.toDate();
+    // Only process speeches from the current week
+    final now = DateTime.now();
+    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+    final endOfWeek = startOfWeek.add(const Duration(days: 7));
+    
+    if (date.isBefore(startOfWeek) || date.isAfter(endOfWeek)) continue;
 
-    final day = date.weekday;
-    final score = speech['overall_score'] as double? ?? 0.0;
-
-    switch (day) {
+    final score = speech['overall_score']?.toDouble() ?? 0.0;
+    
+    switch (date.weekday) {
       case DateTime.monday:
-        weeklyData['Mon'] = weeklyData['Mon']! + score;
-        countData['Mon'] = countData['Mon']! + 1;
+        weeklyScores['Mon']!.add(score);
         break;
       case DateTime.tuesday:
-        weeklyData['Tue'] = weeklyData['Tue']! + score;
-        countData['Tue'] = countData['Tue']! + 1;
+        weeklyScores['Tue']!.add(score);
         break;
       case DateTime.wednesday:
-        weeklyData['Wed'] = weeklyData['Wed']! + score;
-        countData['Wed'] = countData['Wed']! + 1;
+        weeklyScores['Wed']!.add(score);
         break;
       case DateTime.thursday:
-        weeklyData['Thu'] = weeklyData['Thu']! + score;
-        countData['Thu'] = countData['Thu']! + 1;
+        weeklyScores['Thu']!.add(score);
         break;
       case DateTime.friday:
-        weeklyData['Fri'] = weeklyData['Fri']! + score;
-        countData['Fri'] = countData['Fri']! + 1;
+        weeklyScores['Fri']!.add(score);
         break;
       case DateTime.saturday:
-        weeklyData['Sat'] = weeklyData['Sat']! + score;
-        countData['Sat'] = countData['Sat']! + 1;
+        weeklyScores['Sat']!.add(score);
         break;
       case DateTime.sunday:
-        weeklyData['Sun'] = weeklyData['Sun']! + score;
-        countData['Sun'] = countData['Sun']! + 1;
+        weeklyScores['Sun']!.add(score);
         break;
     }
   }
 
-  // Calculate average scores
-  weeklyData.forEach((key, value) {
-    if (countData[key]! > 0) {
-      weeklyData[key] = value / countData[key]!;
+  // Calculate averages
+  final Map<String, double> averages = {};
+  weeklyScores.forEach((day, scores) {
+    if (scores.isEmpty) {
+      averages[day] = 0.0;
+    } else {
+      final sum = scores.reduce((a, b) => a + b);
+      averages[day] = sum / scores.length;
     }
   });
 
-  return weeklyData;
+  print('Weekly averages: $averages'); // Debug log
+  return averages;
 }
 
 Map<String, double> _processMonthlyData(List<Map<String, dynamic>> data) {
-  final Map<String, double> monthlyData = {
-    'Week 1': 0.0,
-    'Week 2': 0.0,
-    'Week 3': 0.0,
-    'Week 4': 0.0,
-  };
-
-  final Map<String, int> countData = {
-    'Week 1': 0,
-    'Week 2': 0,
-    'Week 3': 0,
-    'Week 4': 0,
+  final Map<String, List<double>> monthlyScores = {
+    'Week 1': [],
+    'Week 2': [],
+    'Week 3': [],
+    'Week 4': [],
   };
 
   for (var speech in data) {
-    final dateField = speech['date'];
-    DateTime date;
+    final timestamp = speech['recorded_at'] as Timestamp?;
+    if (timestamp == null) continue;
 
-    if (dateField is Timestamp) {
-      date = dateField.toDate();
-    } else if (dateField is DateTime) {
-      date = dateField;
-    } else {
-      continue; // Skip if date is not a valid type
-    }
+    final date = timestamp.toDate();
+    // Only process speeches from the current month
+    final now = DateTime.now();
+    final startOfMonth = DateTime(now.year, now.month, 1);
+    final endOfMonth = DateTime(now.year, now.month + 1, 0);
+    
+    if (date.isBefore(startOfMonth) || date.isAfter(endOfMonth)) continue;
 
-    final week = (date.day - 1) ~/ 7;
-    final score = speech['overall_score'] as double? ?? 0.0;
-
-    switch (week) {
-      case 0:
-        monthlyData['Week 1'] = monthlyData['Week 1']! + score;
-        countData['Week 1'] = countData['Week 1']! + 1;
-        break;
-      case 1:
-        monthlyData['Week 2'] = monthlyData['Week 2']! + score;
-        countData['Week 2'] = countData['Week 2']! + 1;
-        break;
-      case 2:
-        monthlyData['Week 3'] = monthlyData['Week 3']! + score;
-        countData['Week 3'] = countData['Week 3']! + 1;
-        break;
-      case 3:
-        monthlyData['Week 4'] = monthlyData['Week 4']! + score;
-        countData['Week 4'] = countData['Week 4']! + 1;
-        break;
+    final score = speech['overall_score']?.toDouble() ?? 0.0;
+    final weekOfMonth = ((date.day - 1) / 7).floor() + 1;
+    
+    if (weekOfMonth <= 4) { // Only process first 4 weeks
+      monthlyScores['Week $weekOfMonth']!.add(score);
     }
   }
 
-  // Calculate average scores
-  monthlyData.forEach((key, value) {
-    if (countData[key]! > 0) {
-      monthlyData[key] = value / countData[key]!;
+  // Calculate averages
+  final Map<String, double> averages = {};
+  monthlyScores.forEach((week, scores) {
+    if (scores.isEmpty) {
+      averages[week] = 0.0;
+    } else {
+      final sum = scores.reduce((a, b) => a + b);
+      averages[week] = sum / scores.length;
     }
   });
 
-  return monthlyData;
+  print('Monthly averages: $averages'); // Debug log
+  return averages;
 }
-    }
