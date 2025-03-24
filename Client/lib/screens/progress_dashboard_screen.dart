@@ -21,7 +21,7 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -43,13 +43,12 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
           tabs: const [
             Tab(text: 'WEEKLY'),
             Tab(text: 'MONTHLY'),
-            Tab(text: 'YEARLY'),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [_buildWeeklyView(), _buildMonthlyView(), _buildYearlyView()],
+        children: [_buildWeeklyView(), _buildMonthlyView()],
       ),
     );
   }
@@ -323,121 +322,6 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
     },
   );
 }
-
-  Widget _buildYearlyView() {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: AppPadding.screenPadding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 20),
-            const Text(
-              'This Year\'s Performance',
-              style: AppTextStyles.heading2,
-            ),
-            const SizedBox(height: 20),
-            CardLayout(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Overall Score Trend',
-                    style: AppTextStyles.body1.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(height: 200, child: LineChart(_yearlyScoreData())),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text('Yearly Metrics', style: AppTextStyles.heading2),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildMetricCard(
-                    title: 'Total Speeches',
-                    value: '245',
-                    icon: Icons.mic,
-                    color: AppColors.primaryBlue,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildMetricCard(
-                    title: 'Avg. Duration',
-                    value: '6:00',
-                    icon: Icons.timer,
-                    color: AppColors.warning,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildMetricCard(
-                    title: 'Improvement Rate',
-                    value: '+15%',
-                    icon: Icons.trending_up,
-                    color: AppColors.success,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildMetricCard(
-                    title: 'Best Score',
-                    value: '92',
-                    icon: Icons.star,
-                    color: AppColors.warning,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Yearly Progress Highlights',
-              style: AppTextStyles.heading2,
-            ),
-            const SizedBox(height: 16),
-            CardLayout(
-              child: Column(
-                children: [
-                  _buildImprovementItem(
-                    title: 'Overall Performance',
-                    subtitle: 'Significant improvement in speaking confidence',
-                    icon: Icons.trending_up,
-                    color: AppColors.success,
-                    percentage: 88,
-                  ),
-                  const Divider(height: 24),
-                  _buildImprovementItem(
-                    title: 'Consistent Practice',
-                    subtitle: 'Maintained regular practice schedule',
-                    icon: Icons.calendar_today,
-                    color: AppColors.primaryBlue,
-                    percentage: 92,
-                  ),
-                  const Divider(height: 24),
-                  _buildImprovementItem(
-                    title: 'Speech Quality',
-                    subtitle: 'Enhanced overall delivery and content structure',
-                    icon: Icons.assessment,
-                    color: AppColors.accent,
-                    percentage: 85,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildMetricCard({
     required String title,
@@ -722,342 +606,8 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
     );
   }
 
-  LineChartData _yearlyScoreData() {
-    List<FlSpot> spots = [
-      const FlSpot(0, 70),
-      const FlSpot(1, 72),
-      const FlSpot(2, 75),
-      const FlSpot(3, 78),
-      const FlSpot(4, 80),
-      const FlSpot(5, 82),
-      const FlSpot(6, 81),
-      const FlSpot(7, 83),
-      const FlSpot(8, 85),
-      const FlSpot(9, 84),
-      const FlSpot(10, 86),
-      const FlSpot(11, 85),
-    ];
-
-    return LineChartData(
-      gridData: FlGridData(
-        show: true,
-        drawVerticalLine: false,
-        horizontalInterval: 10,
-        getDrawingHorizontalLine: (value) {
-          return FlLine(color: Colors.grey.shade200, strokeWidth: 1);
-        },
-      ),
-      titlesData: FlTitlesData(
-        show: true,
-        rightTitles: const AxisTitles(
-          sideTitles: SideTitles(showTitles: false),
-        ),
-        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        bottomTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            getTitlesWidget: (value, meta) {
-              const style = TextStyle(color: AppColors.lightText, fontSize: 12);
-              String text;
-              switch (value.toInt()) {
-                case 0:
-                  text = 'Jan';
-                  break;
-                case 3:
-                  text = 'Apr';
-                  break;
-                case 6:
-                  text = 'Jul';
-                  break;
-                case 9:
-                  text = 'Oct';
-                  break;
-                default:
-                  text = '';
-              }
-              return Text(text, style: style);
-            },
-          ),
-        ),
-        leftTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            interval: 10,
-            reservedSize: 30,
-            getTitlesWidget: (value, meta) {
-              return Text(
-                value.toInt().toString(),
-                style: const TextStyle(
-                  color: AppColors.lightText,
-                  fontSize: 12,
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-      borderData: FlBorderData(show: false),
-      minX: 0,
-      maxX: 11,
-      minY: 60,
-      maxY: 100,
-      lineBarsData: [
-        LineChartBarData(
-          spots: spots,
-          isCurved: true,
-          color: AppColors.primaryBlue,
-          barWidth: 3,
-          isStrokeCapRound: true,
-          dotData: FlDotData(
-            show: true,
-            getDotPainter: (spot, percent, barData, index) {
-              return FlDotCirclePainter(
-                radius: 4,
-                color: AppColors.primaryBlue,
-                strokeWidth: 2,
-                strokeColor: Colors.white,
-              );
-            },
-          ),
-          belowBarData: BarAreaData(
-            show: true,
-            color: AppColors.primaryBlue.withOpacity(0.2),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Future<List<Map<String, dynamic>>> _fetchSpeechData() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return [];
-    }
-
-    try {
-      final speechesSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('speeches')
-          .get();
-
-      final data = speechesSnapshot.docs.map((doc) => doc.data()).toList();
-      print('Fetched speech data: $data'); // Debug log
-      return data;
-    } catch (e) {
-      print('Error fetching speech data: $e');
-      return [];
-    }
-  }
-
-  Map<String, double> _processWeeklyData(List<Map<String, dynamic>> speeches) {
-  final now = DateTime.now();
-  final lastWeek = now.subtract(const Duration(days: 7));
-
-  // Initialize a map to store scores for each day
-  final Map<int, List<double>> dailyScores = {};
-
-  for (var speech in speeches) {
-    final recordedAt = speech['recorded_at'];
-    DateTime? recordedDate;
-
-    // Handle recorded_at as a string or Timestamp
-    if (recordedAt is Timestamp) {
-      recordedDate = recordedAt.toDate();
-    } else if (recordedAt is String) {
-      if (recordedAt == "firestore.SERVER_TIMESTAMP") {
-        // Assign a fallback value (e.g., current date and time)
-        recordedDate = now;
-      } else {
-        try {
-          recordedDate = DateTime.parse(recordedAt);
-        } catch (e) {
-          print('Error parsing recorded_at: $e');
-          continue; // Skip invalid dates
-        }
-      }
-    }
-
-    if (recordedDate != null && recordedDate.isAfter(lastWeek)) {
-      final dayOfWeek = recordedDate.weekday; // 1 = Monday, 7 = Sunday
-      final score = speech['proficiency_score'] as double? ?? 0.0;
-
-      if (!dailyScores.containsKey(dayOfWeek)) {
-        dailyScores[dayOfWeek] = [];
-      }
-      dailyScores[dayOfWeek]!.add(score);
-    }
-  }
-
-  // Calculate average score for each day
-  final Map<String, double> weeklyAverages = {};
-  for (var entry in dailyScores.entries) {
-    final dayOfWeek = entry.key;
-    final scores = entry.value;
-    final averageScore = scores.reduce((a, b) => a + b) / scores.length;
-
-    // Map dayOfWeek to a string (e.g., "Mon", "Tue")
-    final dayName = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][dayOfWeek - 1];
-    weeklyAverages[dayName] = averageScore;
-  }
-
-  print('Processed weekly data: $weeklyAverages'); // Debug log
-  return weeklyAverages;
-}
-
-  Map<String, double> _processMonthlyData(List<Map<String, dynamic>> speeches) {
-  final now = DateTime.now();
-  final startOfMonth = DateTime(now.year, now.month, 1);
-
-  // Initialize a map to store scores for each week
-  final Map<int, List<double>> weeklyScores = {};
-
-  for (var speech in speeches) {
-    final recordedAt = speech['recorded_at'];
-    DateTime? recordedDate;
-
-    // Handle recorded_at as a string or Timestamp
-    if (recordedAt is Timestamp) {
-      recordedDate = recordedAt.toDate();
-    } else if (recordedAt is String) {
-      if (recordedAt == "firestore.SERVER_TIMESTAMP") {
-        // Assign a fallback value (e.g., current date and time)
-        recordedDate = now;
-      } else {
-        try {
-          recordedDate = DateTime.parse(recordedAt);
-        } catch (e) {
-          print('Error parsing recorded_at: $e');
-          continue; // Skip invalid dates
-        }
-      }
-    }
-
-    if (recordedDate != null && recordedDate.isAfter(startOfMonth)) {
-      final weekOfMonth = ((recordedDate.day - 1) ~/ 7) + 1; // Calculate week of the month
-      final score = speech['proficiency_score'] as double? ?? 0.0;
-
-      if (!weeklyScores.containsKey(weekOfMonth)) {
-        weeklyScores[weekOfMonth] = [];
-      }
-      weeklyScores[weekOfMonth]!.add(score);
-    }
-  }
-
-  // Calculate average score for each week
-  final Map<String, double> monthlyAverages = {};
-  for (var entry in weeklyScores.entries) {
-    final weekOfMonth = entry.key;
-    final scores = entry.value;
-    final averageScore = scores.reduce((a, b) => a + b) / scores.length;
-
-    monthlyAverages['Week $weekOfMonth'] = averageScore;
-  }
-
-  print('Processed monthly data: $monthlyAverages'); // Debug log
-  return monthlyAverages;
-}
-
-  Map<int, double> _processYearlyData(List<Map<String, dynamic>> speeches) {
-    final now = DateTime.now();
-    final firstDayOfYear = DateTime(now.year, 1, 1);
-
-    // Initialize a map to store scores for each month
-    final Map<int, List<double>> monthlyScores = {};
-
-    for (var speech in speeches) {
-      final recordedAt = (speech['recorded_at'] as Timestamp?)?.toDate();
-      if (recordedAt != null && recordedAt.isAfter(firstDayOfYear)) {
-        final month = recordedAt.month; // 1 = January, 12 = December
-        final score = speech['proficiency_score'] as double? ?? 0.0;
-
-        if (!monthlyScores.containsKey(month)) {
-          monthlyScores[month] = [];
-        }
-        monthlyScores[month]!.add(score);
-      }
-    }
-
-    // Calculate average score for each month
-    final Map<int, double> yearlyAverages = {};
-    for (var entry in monthlyScores.entries) {
-      final month = entry.key;
-      final scores = entry.value;
-      final averageScore = scores.reduce((a, b) => a + b) / scores.length;
-
-      yearlyAverages[month] = averageScore;
-    }
-
-    return yearlyAverages;
-  }
-
   LineChartData _generateWeeklyScoreData(Map<String, double> weeklyData) {
   print('Weekly data for graph: $weeklyData'); // Debug log
-
-  if (weeklyData.isEmpty) {
-    // Handle empty data by showing a placeholder graph with axes
-    return LineChartData(
-      gridData: FlGridData(show: true),
-      titlesData: FlTitlesData(
-        bottomTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            getTitlesWidget: (value, meta) {
-              const style = TextStyle(color: AppColors.lightText, fontSize: 12);
-              String text = '';
-              switch (value.toInt()) {
-                case 0:
-                  text = 'Mon';
-                  break;
-                case 1:
-                  text = 'Tue';
-                  break;
-                case 2:
-                  text = 'Wed';
-                  break;
-                case 3:
-                  text = 'Thu';
-                  break;
-                case 4:
-                  text = 'Fri';
-                  break;
-                case 5:
-                  text = 'Sat';
-                  break;
-                case 6:
-                  text = 'Sun';
-                  break;
-                default:
-                  text = '';
-              }
-              return Text(text, style: style);
-            },
-          ),
-        ),
-        leftTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            interval: 20,
-            getTitlesWidget: (value, meta) {
-              return Text(
-                value.toInt().toString(),
-                style: const TextStyle(color: AppColors.lightText, fontSize: 12),
-              );
-            },
-          ),
-        ),
-      ),
-      borderData: FlBorderData(
-        show: true,
-        border: Border.all(color: Colors.grey.shade300, width: 1),
-      ),
-      minX: 0,
-      maxX: 6,
-      minY: 0,
-      maxY: 100,
-      lineBarsData: [],
-    );
-  }
 
   final spots = weeklyData.entries
       .map((entry) => FlSpot(
@@ -1091,6 +641,7 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
       bottomTitles: AxisTitles(
         sideTitles: SideTitles(
           showTitles: true,
+          interval: 1, // Set interval to 1 to remove unnecessary scales
           getTitlesWidget: (value, meta) {
             const style = TextStyle(color: AppColors.lightText, fontSize: 12);
             String text = '';
@@ -1135,6 +686,12 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
           },
         ),
       ),
+      topTitles: AxisTitles(
+        sideTitles: SideTitles(showTitles: false),
+      ),
+      rightTitles: AxisTitles(
+        sideTitles: SideTitles(showTitles: false),
+      ),
     ),
     borderData: FlBorderData(
       show: true,
@@ -1174,62 +731,6 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
   LineChartData _generateMonthlyScoreData(Map<String, double> monthlyData) {
   print('Monthly data for graph: $monthlyData'); // Debug log
 
-  if (monthlyData.isEmpty) {
-    // Handle empty data by showing a placeholder graph with axes
-    return LineChartData(
-      gridData: FlGridData(show: true),
-      titlesData: FlTitlesData(
-        bottomTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            getTitlesWidget: (value, meta) {
-              const style = TextStyle(color: AppColors.lightText, fontSize: 12);
-              String text = '';
-              switch (value.toInt()) {
-                case 0:
-                  text = 'Week 1';
-                  break;
-                case 1:
-                  text = 'Week 2';
-                  break;
-                case 2:
-                  text = 'Week 3';
-                  break;
-                case 3:
-                  text = 'Week 4';
-                  break;
-                default:
-                  text = '';
-              }
-              return Text(text, style: style);
-            },
-          ),
-        ),
-        leftTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            interval: 20,
-            getTitlesWidget: (value, meta) {
-              return Text(
-                value.toInt().toString(),
-                style: const TextStyle(color: AppColors.lightText, fontSize: 12),
-              );
-            },
-          ),
-        ),
-      ),
-      borderData: FlBorderData(
-        show: true,
-        border: Border.all(color: Colors.grey.shade300, width: 1),
-      ),
-      minX: 0,
-      maxX: 3,
-      minY: 0,
-      maxY: 100,
-      lineBarsData: [],
-    );
-  }
-
   final spots = monthlyData.entries
       .map((entry) => FlSpot(
             double.parse(entry.key.split(' ')[1]) - 1,
@@ -1260,6 +761,7 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
       bottomTitles: AxisTitles(
         sideTitles: SideTitles(
           showTitles: true,
+          interval: 1, // Set interval to 1 to remove unnecessary scales
           getTitlesWidget: (value, meta) {
             const style = TextStyle(color: AppColors.lightText, fontSize: 12);
             String text = '';
@@ -1278,11 +780,11 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
                 break;
               default:
                 text = '';
-              }
-              return Text(text, style: style);
-            },
-          ),
+            }
+            return Text(text, style: style);
+          },
         ),
+      ),
       leftTitles: AxisTitles(
         sideTitles: SideTitles(
           showTitles: true,
@@ -1294,6 +796,12 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
             );
           },
         ),
+      ),
+      topTitles: AxisTitles(
+        sideTitles: SideTitles(showTitles: false),
+      ),
+      rightTitles: AxisTitles(
+        sideTitles: SideTitles(showTitles: false),
       ),
     ),
     borderData: FlBorderData(
@@ -1331,133 +839,6 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
   );
 }
 
-  LineChartData _generateYearlyScoreData(Map<int, double> yearlyData) {
-    final spots = yearlyData.entries
-        .map((entry) => FlSpot(entry.key.toDouble() - 1, entry.value))
-        .toList();
-
-    return LineChartData(
-      gridData: FlGridData(
-        show: true,
-        drawVerticalLine: true,
-        horizontalInterval: 10,
-        verticalInterval: 1,
-        getDrawingHorizontalLine: (value) {
-          return FlLine(
-            color: Colors.grey.shade300.withOpacity(0.5),
-            strokeWidth: 0.8,
-          );
-        },
-        getDrawingVerticalLine: (value) {
-          return FlLine(
-            color: Colors.grey.shade300.withOpacity(0.5),
-            strokeWidth: 0.8,
-          );
-        },
-      ),
-      titlesData: FlTitlesData(
-        show: true,
-        bottomTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            getTitlesWidget: (value, meta) {
-              const style = TextStyle(color: AppColors.lightText, fontSize: 12);
-              String text = '';
-              switch (value.toInt()) {
-                case 0:
-                  text = 'Jan';
-                  break;
-                case 1:
-                  text = 'Feb';
-                  break;
-                case 2:
-                  text = 'Mar';
-                  break;
-                case 3:
-                  text = 'Apr';
-                  break;
-                case 4:
-                  text = 'May';
-                  break;
-                case 5:
-                  text = 'Jun';
-                  break;
-                case 6:
-                  text = 'Jul';
-                  break;
-                case 7:
-                  text = 'Aug';
-                  break;
-                case 8:
-                  text = 'Sep';
-                  break;
-                case 9:
-                  text = 'Oct';
-                  break;
-                case 10:
-                  text = 'Nov';
-                  break;
-                case 11:
-                  text = 'Dec';
-                  break;
-                default:
-                  text = '';
-              }
-              return Text(text, style: style);
-            },
-          ),
-        ),
-        leftTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            interval: 10,
-            getTitlesWidget: (value, meta) {
-              if (value % 10 == 0) {
-                return Text(
-                  value.toInt().toString(),
-                  style: const TextStyle(color: AppColors.lightText, fontSize: 12),
-                );
-              }
-              return const SizedBox.shrink();
-            },
-          ),
-        ),
-      ),
-      borderData: FlBorderData(
-        show: true,
-        border: Border.all(color: Colors.grey.shade300, width: 1),
-      ),
-      minX: 0,
-      maxX: 11,
-      minY: 0,
-      maxY: 100,
-      lineBarsData: [
-        LineChartBarData(
-          spots: spots,
-          isCurved: true,
-          color: AppColors.primaryBlue,
-          barWidth: 3,
-          isStrokeCapRound: true,
-          dotData: FlDotData(
-            show: true,
-            getDotPainter: (spot, percent, barData, index) {
-              return FlDotCirclePainter(
-                radius: 4,
-                color: AppColors.primaryBlue,
-                strokeWidth: 2,
-                strokeColor: Colors.white,
-              );
-            },
-          ),
-          belowBarData: BarAreaData(
-            show: true,
-            color: AppColors.primaryBlue.withOpacity(0.2),
-          ),
-        ),
-      ],
-    );
-  }
-
   Stream<List<Map<String, dynamic>>> _streamSpeechData() {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) {
@@ -1487,4 +868,142 @@ Stream<List<Map<String, dynamic>>> _streamMonthlySpeechData() {
       .map((snapshot) =>
           snapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList());
 }
+
+Map<String, double> _processWeeklyData(List<Map<String, dynamic>> data) {
+  final Map<String, double> weeklyData = {
+    'Mon': 0.0,
+    'Tue': 0.0,
+    'Wed': 0.0,
+    'Thu': 0.0,
+    'Fri': 0.0,
+    'Sat': 0.0,
+    'Sun': 0.0,
+  };
+
+  final Map<String, int> countData = {
+    'Mon': 0,
+    'Tue': 0,
+    'Wed': 0,
+    'Thu': 0,
+    'Fri': 0,
+    'Sat': 0,
+    'Sun': 0,
+  };
+
+  for (var speech in data) {
+    final dateField = speech['date'];
+    DateTime date;
+
+    if (dateField is Timestamp) {
+      date = dateField.toDate();
+    } else if (dateField is DateTime) {
+      date = dateField;
+    } else {
+      continue; // Skip if date is not a valid type
+    }
+
+    final day = date.weekday;
+    final score = speech['overall_score'] as double? ?? 0.0;
+
+    switch (day) {
+      case DateTime.monday:
+        weeklyData['Mon'] = weeklyData['Mon']! + score;
+        countData['Mon'] = countData['Mon']! + 1;
+        break;
+      case DateTime.tuesday:
+        weeklyData['Tue'] = weeklyData['Tue']! + score;
+        countData['Tue'] = countData['Tue']! + 1;
+        break;
+      case DateTime.wednesday:
+        weeklyData['Wed'] = weeklyData['Wed']! + score;
+        countData['Wed'] = countData['Wed']! + 1;
+        break;
+      case DateTime.thursday:
+        weeklyData['Thu'] = weeklyData['Thu']! + score;
+        countData['Thu'] = countData['Thu']! + 1;
+        break;
+      case DateTime.friday:
+        weeklyData['Fri'] = weeklyData['Fri']! + score;
+        countData['Fri'] = countData['Fri']! + 1;
+        break;
+      case DateTime.saturday:
+        weeklyData['Sat'] = weeklyData['Sat']! + score;
+        countData['Sat'] = countData['Sat']! + 1;
+        break;
+      case DateTime.sunday:
+        weeklyData['Sun'] = weeklyData['Sun']! + score;
+        countData['Sun'] = countData['Sun']! + 1;
+        break;
+    }
+  }
+
+  // Calculate average scores
+  weeklyData.forEach((key, value) {
+    if (countData[key]! > 0) {
+      weeklyData[key] = value / countData[key]!;
+    }
+  });
+
+  return weeklyData;
 }
+
+Map<String, double> _processMonthlyData(List<Map<String, dynamic>> data) {
+  final Map<String, double> monthlyData = {
+    'Week 1': 0.0,
+    'Week 2': 0.0,
+    'Week 3': 0.0,
+    'Week 4': 0.0,
+  };
+
+  final Map<String, int> countData = {
+    'Week 1': 0,
+    'Week 2': 0,
+    'Week 3': 0,
+    'Week 4': 0,
+  };
+
+  for (var speech in data) {
+    final dateField = speech['date'];
+    DateTime date;
+
+    if (dateField is Timestamp) {
+      date = dateField.toDate();
+    } else if (dateField is DateTime) {
+      date = dateField;
+    } else {
+      continue; // Skip if date is not a valid type
+    }
+
+    final week = (date.day - 1) ~/ 7;
+    final score = speech['overall_score'] as double? ?? 0.0;
+
+    switch (week) {
+      case 0:
+        monthlyData['Week 1'] = monthlyData['Week 1']! + score;
+        countData['Week 1'] = countData['Week 1']! + 1;
+        break;
+      case 1:
+        monthlyData['Week 2'] = monthlyData['Week 2']! + score;
+        countData['Week 2'] = countData['Week 2']! + 1;
+        break;
+      case 2:
+        monthlyData['Week 3'] = monthlyData['Week 3']! + score;
+        countData['Week 3'] = countData['Week 3']! + 1;
+        break;
+      case 3:
+        monthlyData['Week 4'] = monthlyData['Week 4']! + score;
+        countData['Week 4'] = countData['Week 4']! + 1;
+        break;
+    }
+  }
+
+  // Calculate average scores
+  monthlyData.forEach((key, value) {
+    if (countData[key]! > 0) {
+      monthlyData[key] = value / countData[key]!;
+    }
+  });
+
+  return monthlyData;
+}
+    }
