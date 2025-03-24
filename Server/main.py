@@ -169,9 +169,21 @@ async def upload_file(file: UploadFile = File(...),
         with open(file_location, "wb") as f:
             f.write(file_content)
         
+        # Get user data from Firestore
+        user_ref = db.collection("users").document(user_id)
+        user_data = user_ref.get().to_dict()
+        user_name = user_data.get("name", "unknown_user")
+        
+        # Get the number of existing speeches for the user
+        speeches_ref = user_ref.collection("speeches")
+        speech_count = len(speeches_ref.get())
+        
+        # Create a unique filename
+        unique_filename = f"{user_name}_{topic}_{speech_count + 1}.wav"
+        
         # Upload to Firebase Storage
         bucket = storage.bucket()
-        blob = bucket.blob(f"audio/{user_id}/{file.filename}")
+        blob = bucket.blob(f"audio/{user_id}/{unique_filename}")
         
         # Upload from local file
         blob.upload_from_filename(file_location)
@@ -275,8 +287,6 @@ async def upload_file(file: UploadFile = File(...),
             }
             
             # Save under the user's document in Firestore
-            user_ref = db.collection("users").document(user_id)
-            speeches_ref = user_ref.collection("speeches")
             speeches_ref.add(speech_data)
             
             logging.info(f"Speech data saved for user: {user_id}")
@@ -288,7 +298,7 @@ async def upload_file(file: UploadFile = File(...),
         response = {
             "message": "Speech uploaded and analyzed successfully",
             "speech_data": speech_data,
-            "filename": file.filename,
+            "filename": unique_filename,
             "transcription": transcription,
             "pause_duration": pause_duration,
             "pause_analysis": pause_analysis,
