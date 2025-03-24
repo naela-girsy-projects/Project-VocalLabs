@@ -183,26 +183,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
                 const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _buildSocialLoginButton(
-                      icon: Icons.g_mobiledata,
-                      color: Colors.red,
-                      onPressed: () {
-                        // Add Google login logic
-                      },
-                    ),
-                    const SizedBox(width: 20),
-                    _buildSocialLoginButton(
-                      icon: Icons.facebook,
-                      color: Colors.blue,
-                      onPressed: () {
-                        // Add Facebook login logic
-                      },
-                    ),
-                  ],
-                ),
                 const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -229,25 +209,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildSocialLoginButton({
-    required IconData icon,
-    required Color color,
-    required VoidCallback onPressed,
-  }) {
-    return InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(icon, size: 32, color: color),
       ),
     );
   }
