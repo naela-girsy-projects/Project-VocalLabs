@@ -7,6 +7,9 @@ import 'package:vocallabs_flutter_app/screens/speech_history_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vocallabs_flutter_app/services/speech_storage_service.dart';
+import 'package:vocallabs_flutter_app/screens/speech_history_information.dart';
+import 'package:vocallabs_flutter_app/models/speech_model.dart';
+import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -314,7 +317,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class _DashboardTab extends StatelessWidget {
+class _DashboardTab extends StatefulWidget {  // Change to StatefulWidget
   final String userName;
   final Future<Map<String, String>?> Function() promptForSpeechTopic;
   final Map<String, double> progressScores;
@@ -324,6 +327,148 @@ class _DashboardTab extends StatelessWidget {
     required this.promptForSpeechTopic,
     required this.progressScores,
   });
+
+  @override
+  State<_DashboardTab> createState() => _DashboardTabState();
+}
+
+class _DashboardTabState extends State<_DashboardTab> {
+  List<SpeechModel> _recentSpeeches = [];
+  bool _loadingSpeeches = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRecentSpeeches();
+  }
+
+  Future<void> _loadRecentSpeeches() async {
+    try {
+      final speeches = await SpeechStorageService.getSpeeches();
+      setState(() {
+        _recentSpeeches = speeches.take(3).toList(); // Get only the 3 most recent
+        _loadingSpeeches = false;
+      });
+    } catch (e) {
+      print('Error loading recent speeches: $e');
+      setState(() => _loadingSpeeches = false);
+    }
+  }
+
+  Widget _buildRecentSpeechesSection() {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Recent Speeches', style: AppTextStyles.heading2),
+            TextButton(
+              onPressed: () {
+                final homeState = context.findAncestorStateOfType<_HomeScreenState>();
+                if (homeState != null) {
+                  homeState.setState(() {
+                    homeState._selectedIndex = 1; // Switch to History tab
+                  });
+                }
+              },
+              child: const Text('View All', style: TextStyle(color: AppColors.primaryBlue)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (_loadingSpeeches)
+          const Center(child: CircularProgressIndicator())
+        else if (_recentSpeeches.isEmpty)
+          const CardLayout(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('No speeches recorded yet'),
+            ),
+          )
+        else
+          ..._recentSpeeches.map((speech) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: CardLayout(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SpeechHistoryInformation(speech: speech),
+                  ),
+                );
+              },
+              child: Row(
+                children: [
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: _getScoreColor(speech.score ?? 0).withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${speech.score ?? 0}',
+                        style: TextStyle(
+                          color: _getScoreColor(speech.score ?? 0),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          speech.topic,
+                          style: AppTextStyles.body1.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${_formatDate(speech.recordedAt)} • ${_formatDuration(speech.duration ?? 0)}',
+                          style: AppTextStyles.body2,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right, color: AppColors.lightText),
+                ],
+              ),
+            ),
+          )).toList(),
+      ],
+    );
+  }
+
+  // Helper methods for formatting
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    if (date.year == now.year && date.month == now.month && date.day == now.day) {
+      return 'Today, ${DateFormat('h:mm a').format(date)}';
+    } else if (date.year == now.year && date.month == now.month && date.day == now.day - 1) {
+      return 'Yesterday, ${DateFormat('h:mm a').format(date)}';
+    }
+    return DateFormat('MMM d, yyyy').format(date);
+  }
+
+  String _formatDuration(double seconds) {
+    final int totalSeconds = seconds.round();
+    final int minutes = totalSeconds ~/ 60;
+    final int remainingSeconds = totalSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
+  }
+
+  Color _getScoreColor(int score) {
+    if (score >= 85) return AppColors.success;
+    if (score >= 70) return AppColors.primaryBlue;
+    if (score >= 60) return AppColors.warning;
+    return AppColors.error;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -341,7 +486,7 @@ class _DashboardTab extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Hello, $userName', style: AppTextStyles.heading1),
+                      Text('Hello, ${widget.userName}', style: AppTextStyles.heading1),
                       const Text(
                         'Let\'s improve your speaking skills today',
                         style: AppTextStyles.body2,
@@ -352,7 +497,7 @@ class _DashboardTab extends StatelessWidget {
                     backgroundColor: AppColors.lightBlue,
                     radius: 24,
                     child: Text(
-                      userName.isNotEmpty ? userName[0] : 'U',
+                      widget.userName.isNotEmpty ? widget.userName[0] : 'U',
                       style: const TextStyle(
                         color: AppColors.primaryBlue,
                         fontWeight: FontWeight.bold,
@@ -392,7 +537,7 @@ class _DashboardTab extends StatelessWidget {
                       icon: Icons.mic,
                       onPressed: () async {
                         // Call the passed callback
-                        final result = await promptForSpeechTopic();
+                        final result = await widget.promptForSpeechTopic();
 
                         // Only navigate if results are provided
                         if (result != null) {
@@ -412,7 +557,7 @@ class _DashboardTab extends StatelessWidget {
                       icon: Icons.upload,
                       onPressed: () async {
                         // Call the passed callback
-                        final result = await promptForSpeechTopic();
+                        final result = await widget.promptForSpeechTopic();
 
                         // Only navigate if results are provided
                         if (result != null) {
@@ -435,83 +580,39 @@ class _DashboardTab extends StatelessWidget {
                   children: [
                     _buildProgressItem(
                       label: 'Speech Development',
-                      progress: (progressScores['speechDevelopment'] ?? 0.0) / 100,
+                      progress: (widget.progressScores['speechDevelopment'] ?? 0.0) / 100,
                       color: AppColors.primaryBlue,
                     ),
                     const SizedBox(height: 16),
                     _buildProgressItem(
                       label: 'Proficiency',
-                      progress: (progressScores['proficiency'] ?? 0.0) / 100,
+                      progress: (widget.progressScores['proficiency'] ?? 0.0) / 100,
                       color: AppColors.warning,
                     ),
                     const SizedBox(height: 16),
                     _buildProgressItem(
                       label: 'Voice Analysis',
-                      progress: (progressScores['voiceAnalysis'] ?? 0.0) / 100,
+                      progress: (widget.progressScores['voiceAnalysis'] ?? 0.0) / 100,
                       color: AppColors.success,
                     ),
                     const SizedBox(height: 16),
                     _buildProgressItem(
                       label: 'Speech Effectiveness',
-                      progress: (progressScores['effectiveness'] ?? 0.0) / 100,
+                      progress: (widget.progressScores['effectiveness'] ?? 0.0) / 100,
                       color: const Color.fromARGB(255, 149, 90, 148),
                     ),
                     const SizedBox(height: 16),
                     _buildProgressItem(
                       label: 'Vocabulary Evaluation',
-                      progress: (progressScores['vocabulary'] ?? 0.0) / 100,
+                      progress: (widget.progressScores['vocabulary'] ?? 0.0) / 100,
                       color: const Color.fromARGB(255, 81, 161, 165),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Recent Speeches', style: AppTextStyles.heading2),
-                  TextButton(
-                    onPressed: () {
-                      // Navigate to History tab
-                      final homeState =
-                          context.findAncestorStateOfType<_HomeScreenState>();
-                      if (homeState != null) {
-                        homeState.setState(() {
-                          homeState._selectedIndex = 1;
-                        });
-                      }
-                    },
-                    child: const Text(
-                      'View All',
-                      style: TextStyle(color: AppColors.primaryBlue),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _buildRecentSpeechItem(
-                title: 'Toastmaster Introduction',
-                date: 'Today, 2:30 PM',
-                duration: '5:45',
-                score: 82,
-                context: context,
-              ),
-              const SizedBox(height: 12),
-              _buildRecentSpeechItem(
-                title: 'Project Presentation',
-                date: 'Yesterday, 10:15 AM',
-                duration: '12:20',
-                score: 78,
-                context: context,
-              ),
-              const SizedBox(height: 12),
-              _buildRecentSpeechItem(
-                title: 'Practice Session',
-                date: 'Feb 24, 4:45 PM',
-                duration: '3:10',
-                score: 75,
-                context: context,
-              ),
+              _buildRecentSpeechesSection(), // Add this line
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -546,60 +647,6 @@ class _DashboardTab extends StatelessWidget {
           borderRadius: BorderRadius.circular(4),
         ),
       ],
-    );
-  }
-
-  Widget _buildRecentSpeechItem({
-    required String title,
-    required String date,
-    required String duration,
-    required int score,
-    required BuildContext context,
-  }) {
-    return CardLayout(
-      onTap: () {
-        // Navigate to speech playback when tapping on history item
-        Navigator.pushNamed(context, '/playback_history');
-      },
-      child: Row(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: const BoxDecoration(
-              color: AppColors.lightBlue,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                '$score',
-                style: const TextStyle(
-                  color: AppColors.primaryBlue,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppTextStyles.body1.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text('$date • $duration', style: AppTextStyles.body2),
-              ],
-            ),
-          ),
-          const Icon(Icons.play_arrow, color: AppColors.primaryBlue),
-        ],
-      ),
     );
   }
 }
