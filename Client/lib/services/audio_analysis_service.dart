@@ -5,8 +5,8 @@ import 'package:http_parser/http_parser.dart';
 
 class AudioAnalysisService {
   static const String baseUrl = bool.fromEnvironment('dart.vm.product')
-      ? 'project-vocallabs-production.up.railway.app' // Production backend
-      : 'http://10.0.2.2:8000'; // Local development backend
+      ? 'https://project-vocallabs-production.up.railway.app' // Production backend
+      //: 'http://10.0.2.2:8000'; // Local development backend
 
   /// Uploads audio data and returns the analysis results
   static Future<Map<String, dynamic>> analyzeAudio({
