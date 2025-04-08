@@ -17,3 +17,4 @@ python-multipart
 firebase-admin
 sentence-transformers>=2.2.0
 spacy>=3.0.0
+python-dotenv
