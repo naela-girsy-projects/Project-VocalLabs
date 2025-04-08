@@ -1,19 +1,19 @@
 # filepath: f:\SDGP_GIT_CONNECT\SDGP_GIT_CONNECT\Project-VocalLabs\Server\firebase_config.py
 import os
-from dotenv import load_dotenv
-import firebase_admin
 from firebase_admin import credentials, firestore, storage
+import firebase_admin
 
-# Explicitly specify the path to the .env file
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../.env"))
-
-# Debug: Check if the private key and private key ID are loaded
+# Load environment variables directly (no .env file in Railway)
 private_key = os.getenv("FIREBASE_PRIVATE_KEY")
 private_key_id = os.getenv("FIREBASE_PRIVATE_KEY_ID")
-if not private_key or not private_key_id:
-    raise RuntimeError("FIREBASE_PRIVATE_KEY or FIREBASE_PRIVATE_KEY_ID is not set or improperly formatted in the .env file")
 
-# Path to your Firebase service account key JSON file
+if not private_key or not private_key_id:
+    raise RuntimeError("FIREBASE_PRIVATE_KEY or FIREBASE_PRIVATE_KEY_ID is not set in the environment variables")
+
+# Replace escaped newlines with actual newlines in the private key
+private_key = private_key.replace("\\n", "\n")
+
+# Firebase service account key configuration
 service_account_key = {
     "type": "service_account",
     "project_id": "vocallabs-fc7d5",
@@ -30,9 +30,9 @@ service_account_key = {
 
 cred = credentials.Certificate(service_account_key)
 
-# Initialize Firebase Admin SDK with the correct storage bucket
+# Initialize Firebase Admin SDK
 firebase_admin.initialize_app(cred, {
-    'storageBucket': 'vocallabs-fc7d5.firebasestorage.app'  # Correct bucket name
+    'storageBucket': 'vocallabs-fc7d5.firebasestorage.app'
 })
 
 # Firestore database instance
