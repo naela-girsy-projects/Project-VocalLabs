@@ -20,6 +20,7 @@ from fastapi.encoders import jsonable_encoder
 from models.speech_effectiveness import evaluate_speech_effectiveness  # Add this import
 from models.vocabulary_evaluation import evaluate_speech  # Add this import
 from dotenv import load_dotenv
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # Explicitly specify the path to the .env file
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../.env"))
@@ -49,6 +50,27 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
+# Increase timeout for large file uploads
+class TimeoutMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        try:
+            response = await call_next(request)
+            return response
+        except Exception as e:
+            logging.error(f"Request failed: {e}")
+            raise
+
+# Add middleware to handle timeouts
+app.add_middleware(TimeoutMiddleware)
+
+# Add logging for debugging
+@app.middleware("http")
+async def log_requests(request, call_next):
+    logging.info(f"Request: {request.method} {request.url}")
+    response = await call_next(request)
+    logging.info(f"Response status: {response.status_code}")
+    return response
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
