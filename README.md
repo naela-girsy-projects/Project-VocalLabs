@@ -18,7 +18,7 @@ VocalLabs is a mobile-based speech analysis and feedback system designed to help
 | Layer | Technology |
 |-------|------------|
 | Frontend | Flutter (Dart) |
-| Backend | Python, Flask |
+| Backend | Python, FastAPI |
 | Cloud Services | Firebase (Auth, Firestore, Storage) |
 | Libraries | NLTK, librosa, NumPy, SciPy |
 | Architecture | Client-Server, RESTful APIs |
@@ -30,7 +30,7 @@ VocalLabs is a mobile-based speech analysis and feedback system designed to help
 recommendation-system/
 ├── data/                       # Raw and processed CSV files (Git LFS)
 ├── models/                     # Pickle model files for ML (Git LFS)
-├── backend/                    # Python Flask backend
+├── backend/                    # Python FastAPI backend
 ├── frontend/                   # Flutter mobile app
 ├── cli/                        # Command-line interface tools
 ├── README.md
@@ -53,7 +53,7 @@ pip install -r backend/requirements.txt
 3. Run the backend server:
 ```bash
 cd backend
-flask run
+Server run
 ```
 
 4. Run the Flutter frontend:
