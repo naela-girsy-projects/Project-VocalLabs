@@ -41,8 +41,8 @@ recommendation-system/
 
 1. Clone this repo:
 ```bash
-git clone https://github.com/naela-girsy-projects/recommendation-system.git
-cd recommendation-system
+git clone https://github.com/naela-girsy-projects/Project-VocalLabs.git
+cd Project-VocalLabs
 ```
 
 2. Install backend dependencies:
